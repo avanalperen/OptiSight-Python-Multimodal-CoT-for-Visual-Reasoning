@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OptiSight Dashboard</title>
+    <style>
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+        }
+
+        .container {
+            display: flex;
+            height: 100%;
+            width: 100%;
+        }
+
+        .left-panel,
+        .right-panel {
+            flex: 1;
+            padding: 20px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .left-panel {
+            border-right: 1px solid #333;
+            background-color: #252526;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 0;
+            /* Full width content */
+            position: relative;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .right-panel {
+            background-color: #1e1e1e;
+            padding: 20px;
+            /* Restore padding for right panel */
+        }
+
+        /* Header Row (Mode + Browse) */
+        .header-row {
+            /* header-row collapsed as controls are absolute */
+            width: 100%;
+            padding: 0;
+            margin: 0;
+        }
+
+        .resource-stats {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            font-family: 'Consolas', monospace;
+            font-size: 14px;
+            color: #d4d4d4;
+            pointer-events: none;
+            margin-right: 20px;
+            /* Space from other action zone elements */
+            padding-left: 20px;
+            /* Align to left edge of action zone */
+        }
+
+        .mode-controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            display: flex;
+            gap: 15px;
+            z-index: 100;
+            align-items: center;
+            height: 50px;
+            /* Fixed height */
+        }
+
+        button.mode-btn {
+            padding: 12px 25px;
+            background-color: #333;
+            color: #ddd;
+            border: 1px solid #555;
+            cursor: pointer;
+            font-size: 16px;
+            /* Larger font */
+            font-weight: bold;
+            border-radius: 6px;
+            transition: all 0.2s;
+            min-width: 120px;
+            /* Fixed minimum width */
+            white-space: nowrap;
+            /* Prevent text wrapping inside button */
+        }
+
+        button.mode-btn:hover {
+            background-color: #444;
+            color: white;
+        }
+
+        button.mode-btn.active {
+            background-color: #007acc;
+            border-color: #569cd6;
+            color: white;
+        }
+
+        .file-upload-controls {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            height: 50px;
+            /* Fixed height */
+        }
+
+        button.browse-btn {
+            padding: 10px 22px;
+            /* Larger */
+            background-color: white;
+            color: black;
+            border: 1px solid #ccc;
+            cursor: pointer;
+            font-size: 15px;
+            /* Larger font */
+            font-weight: bold;
+            border-radius: 4px;
+            transition: background 0.2s;
+            min-width: 140px;
+            /* Fixed minimum width */
+            white-space: nowrap;
+            /* Prevent text wrapping inside button */
+        }
+
+        button.browse-btn:hover {
+            background-color: #f0f0f0;
+        }
+
+        .file-info {
+            display: none;
+            /* Hide file info text to prevent expansion */
+        }
+
+        /* Action Zone (Horizontal beneath video) */
+        .action-zone {
+            width: 100%;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 5px;
+            background: rgba(30, 30, 30, 0.95);
+            padding: 20px;
+            border-radius: 0;
+            border-top: 1px solid #444;
+            margin-top: auto;
+            margin-bottom: 0;
+        }
+
+        .action-row {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .device-toggle {
+            display: flex;
+            background: #252526;
+            padding: 3px;
+            border-radius: 6px;
+            border: 1px solid #555;
+            width: 110px;
+        }
+
+        .device-toggle button {
+            flex: 1;
+            padding: 6px;
+            border: none;
+            background: transparent;
+            color: #888;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 13px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .device-toggle button.active {
+            background: #007acc;
+            color: white;
+        }
+
+        #action-btn {
+            padding: 12px 25px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 2px solid white;
+            transition: transform 0.1s;
+            min-width: 180px;
+        }
+
+        #action-btn:active {
+            transform: scale(0.98);
+        }
+
+        .capture-rate-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            min-width: 250px;
+        }
+
+        .capture-rate-container label {
+            font-size: 14px;
+            color: #aaa;
+            white-space: nowrap;
+        }
+
+        input[type="range"] {
+            flex-grow: 1;
+            height: 6px;
+            background: #444;
+            border-radius: 3px;
+            outline: none;
+        }
+
+        /* Resource Stats (removed container) */
+        .resource-stats .stat-item {
+            display: flex;
+            gap: 8px;
+            white-space: nowrap;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            gap: 25px;
+        }
+
+        .stat-label {
+            color: #9cdcfe;
+            font-weight: bold;
+        }
+
+        .stat-value {
+            color: #4ec9b0;
+            font-weight: 800;
+        }
+
+        /* Deleted duplicate browse-btn styles to prevent conflict */
+
+        button.browse-btn:hover {
+            background-color: #005a9e;
+        }
+
+        .file-info {
+            margin-top: 0;
+            color: #dcdcaa;
+            font-size: 12px;
+            font-family: 'Consolas', monospace;
+            word-break: break-all;
+            text-align: left;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        /* Video Container & Overlay Button */
+        .video-container {
+            width: 100%;
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #000;
+            overflow: hidden;
+            position: relative;
+            border: none;
+            border-top: 1px solid #444;
+            margin: 0;
+            margin-top: 80px;
+            /* Push down below the top controls */
+        }
+
+        video,
+        img#captured-photo {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        /* Overlay Button */
+        .overlay-btn {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 15px 30px;
+            background-color: rgba(0, 122, 204, 0.8);
+            color: white;
+            border: 2px solid white;
+            border-radius: 30px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 10;
+            transition: background-color 0.2s;
+            display: none;
+        }
+
+        .overlay-btn:hover {
+            background-color: rgba(0, 122, 204, 1);
+        }
+
+        .fps-control {
+            margin-top: 20px;
+            width: 80%;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        input[type="range"] {
+            flex-grow: 1;
+        }
+
+        /* Right Panel Sections */
+        .section {
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .section label {
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #9cdcfe;
+            font-size: 20px;
+            /* Increased */
+        }
+
+        textarea {
+            background-color: #3c3c3c;
+            color: #d4d4d4;
+            border: 1px solid #555;
+            padding: 15px;
+            resize: vertical;
+            min-height: 120px;
+            /* Increased */
+            font-family: 'Consolas', monospace;
+            font-size: 18px;
+            /* Increased */
+            display: block;
+            /* Always visible */
+            opacity: 0.5;
+            /* Dimmed by default */
+            transition: opacity 0.3s;
+        }
+
+        textarea.active {
+            opacity: 1;
+            background-color: #444;
+            /* Slightly lighter/brighter */
+        }
+
+        .result-section {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        #result-display {
+            flex-grow: 1;
+            background-color: #2d2d2d;
+            border: 1px solid #444;
+            padding: 15px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            font-family: 'Consolas', monospace;
+            color: #ce9178;
+            font-size: 18px;
+            /* Increased */
+            line-height: 1.5;
+        }
+
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 15px;
+            /* Moved below textarea */
+            font-size: 18px;
+            /* Increased */
+            padding: 10px;
+        }
+
+        .checkbox-container input {
+            width: 22px;
+            /* Increased */
+            height: 22px;
+        }
+
+        #btn-save-prompt,
+        #btn-save-result {
+            padding: 8px 20px;
+            font-size: 16px;
+            background: #007acc;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        #btn-save-prompt:hover,
+        #btn-save-result:hover {
+            background: #005a9e;
+        }
+
+        #btn-clear-result {
+            padding: 8px 20px;
+            font-size: 16px;
+            background: white;
+            color: black;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        #btn-clear-result:hover {
+            background: #e0e0e0;
+        }
+
+        .btn-dimmed {
+            opacity: 0.35;
+            pointer-events: none;
+            cursor: default;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="left-panel">
+            <div class="header-row">
+                <div class="mode-controls">
+                    <button id="btn-photo" class="mode-btn" onclick="setMode('photo')">Photo</button>
+                    <button id="btn-video" class="mode-btn" onclick="setMode('video')">Video</button>
+                    <button id="btn-habitat" class="mode-btn" onclick="setMode('habitat')">AI Habitat Sim</button>
+
+                    <div class="file-upload-controls">
+                        <div id="photo-browse-area" style="display:flex; align-items:center; gap: 10px;">
+                            <button class="browse-btn" onclick="document.getElementById('photo-upload').click()">Browse
+                                Photo</button>
+                            <div id="photo-info" class="file-info" style="display:none;"></div>
+                        </div>
+
+                        <div id="video-browse-area" style="display:none; align-items:center; gap: 10px;">
+                            <button class="browse-btn" onclick="document.getElementById('video-upload').click()">Browse
+                                Video</button>
+                            <div id="video-info" class="file-info" style="display:none;"></div>
+                        </div>
+
+                        <div id="sim-browse-area" style="display:none; align-items:center; gap: 10px;">
+                            <button class="browse-btn">Browse Sim</button>
+                            <div id="sim-info" class="file-info" style="display:none;"></div>
+                        </div>
+
+                        <input type="file" id="photo-upload" accept="image/*"
+                            onchange="handleFileSelect(this, 'image')">
+                        <input type="file" id="video-upload" accept="video/*"
+                            onchange="handleFileSelect(this, 'video')">
+                    </div>
+                </div>
+            </div>
+
+            <div class="video-container">
+                <video id="video-feed" controls playsinline style="display:none;"></video>
+                <img id="captured-photo" style="display:none;" />
+                <canvas id="canvas" style="display:none;"></canvas>
+                <div id="placeholder-text" style="color: #666;">Select a Source</div>
+            </div>
+
+            <div class="action-zone">
+                <div class="resource-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">RAM Usage:</span>
+                        <span id="ram-val" class="stat-value">--%</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">GPU Utilization:</span>
+                        <span id="gpu-val" class="stat-value">--%</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label" style="font-size: 12px;">GPU Memory (VRAM):</span>
+                        <span id="gpu-mem" style="font-size: 12px; color: #ce9178; font-weight: bold;">--</span>
+                    </div>
+                </div>
+
+                <div class="action-row">
+                    <div class="device-toggle">
+                        <button id="device-cpu" class="active" onclick="setDevice('cpu')">CPU</button>
+                        <button id="device-gpu" onclick="setDevice('cuda')">GPU</button>
+                    </div>
+
+                    <button id="action-btn" onclick="handleAction()" style="display: none;"></button>
+                </div>
+
+                <div class="capture-rate-container" id="fps-control" style="opacity: 0.5; pointer-events: none;">
+                    <label>Capture every: <span id="fps-val">1</span>s</label>
+                    <input type="range" id="fps-slider" min="1" max="5" step="1" value="1"
+                        oninput="updateFPS(this.value)">
+                </div>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div class="section">
+                <label>Prompt Settings</label>
+                <textarea id="prompt-input" disabled>Describe this image</textarea>
+                <div class="checkbox-container">
+                    <input type="checkbox" id="use-custom-prompt" onchange="togglePromptInput()">
+                    <label for="use-custom-prompt" style="flex-grow:1;">Use Custom Prompt</label>
+                    <button id="btn-save-prompt" onclick="savePrompt()">Save Prompt</button>
+                </div>
+            </div>
+
+            <div class="result-section" style="margin-top: 0;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+                    <label style="margin-bottom: 0;">Analysis Result</label>
+                </div>
+                <div id="result-display">Waiting for input...</div>
+                <div style="display:flex; justify-content:flex-end; gap: 10px; margin-top: 10px;">
+                    <button id="btn-clear-result" onclick="clearResult()">Clear</button>
+                    <button id="btn-save-result" onclick="saveCurrentResult()">Save Result</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video-feed');
+        const canvas = document.getElementById('canvas');
+        const photoDisplay = document.getElementById('captured-photo');
+        const resultDisplay = document.getElementById('result-display');
+        const fpsLabel = document.getElementById('fps-val');
+        const actionBtn = document.getElementById('action-btn');
+        const promptInput = document.getElementById('prompt-input');
+        const placeholder = document.getElementById('placeholder-text');
+
+        // Resource Monitor elements
+        const ramVal = document.getElementById('ram-val');
+        const gpuVal = document.getElementById('gpu-val');
+        const gpuMem = document.getElementById('gpu-mem');
+
+        // Periodic Stats Polling
+        async function updateStats() {
+            try {
+                const res = await fetch('/stats');
+                const data = await res.json();
+                ramVal.textContent = data.ram + '%';
+                gpuVal.textContent = data.gpu.percent + '%';
+                gpuMem.textContent = data.gpu.usage;
+
+                // Color coding RAM
+                if (data.ram > 90) ramVal.style.color = '#f44747';
+                else if (data.ram > 70) ramVal.style.color = '#dcdcaa';
+                else ramVal.style.color = '#4ec9b0';
+            } catch (e) { }
+        }
+        setInterval(updateStats, 2000);
+        updateStats();
+
+        // File inputs
+        const photoUpload = document.getElementById('photo-upload');
+        const videoUpload = document.getElementById('video-upload');
+
+        let currentMode = null;
+        let streamInterval = null;
+        let captureIntervalSec = 1;
+        let currentSourceName = '';
+        let isStreaming = false;
+        let selectedDevice = 'cpu';
+
+        let currentAnalysisController = null; // Controller for cancelling pending requests
+
+        const BASE_PROMPT = "Describe this image";
+
+        function setDevice(device) {
+            selectedDevice = device;
+            document.getElementById('device-cpu').classList.toggle('active', device === 'cpu');
+            document.getElementById('device-gpu').classList.toggle('active', device === 'cuda');
+            console.log("Device selected:", device);
+        }
+
+        function cancelCurrentAnalysis() {
+            if (currentAnalysisController) {
+                currentAnalysisController.abort();
+                currentAnalysisController = null;
+                console.log("Previous analysis cancelled.");
+            }
+        }
+
+        function setMode(mode) {
+            if (currentMode === mode) return;
+            cancelCurrentAnalysis(); // Cancel any pending operations from previous mode
+            currentMode = mode;
+            console.log("Mode set to:", mode);
+
+            // UI Updates
+            document.querySelectorAll('.mode-controls button').forEach(b => b.classList.remove('active'));
+            document.getElementById(`btn-${mode}`).classList.add('active');
+
+            // Reset display
+            video.style.display = 'none';
+            photoDisplay.style.display = 'none';
+            placeholder.style.display = 'block';
+            placeholder.textContent = 'Select a Source';
+            video.pause();
+            video.src = "";
+            photoDisplay.src = "";
+
+            // Clear file info texts and reset file inputs
+            document.getElementById('photo-info').style.display = 'none';
+            document.getElementById('photo-info').textContent = '';
+            document.getElementById('video-info').style.display = 'none';
+            document.getElementById('video-info').textContent = '';
+            document.getElementById('sim-info').style.display = 'none';
+            document.getElementById('sim-info').textContent = '';
+            document.getElementById('photo-upload').value = '';
+            document.getElementById('video-upload').value = '';
+
+            // Stop any running stream
+            stopStream();
+            updateActionButton();
+
+            // Toggle Browse Areas
+            document.getElementById('photo-browse-area').style.display = 'none';
+            document.getElementById('video-browse-area').style.display = 'none';
+            document.getElementById('sim-browse-area').style.display = 'none';
+
+            if (mode === 'photo') {
+                document.getElementById('photo-browse-area').style.display = 'flex';
+            } else if (mode === 'video') {
+                document.getElementById('video-browse-area').style.display = 'flex';
+            } else {
+                document.getElementById('sim-browse-area').style.display = 'flex';
+                placeholder.textContent = "AI Habitat Interface (Placeholder)";
+            }
+
+            // FPS (Interval) visibility
+            const fpsControl = document.getElementById('fps-control');
+            if (mode === 'photo') {
+                fpsControl.style.opacity = '0.5';
+                fpsControl.style.pointerEvents = 'none';
+            } else {
+                fpsControl.style.opacity = '1';
+                fpsControl.style.pointerEvents = 'auto';
+            }
+        }
+
+        function handleFileSelect(input, type) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                const url = URL.createObjectURL(file);
+
+                placeholder.style.display = 'none';
+
+                if (type === 'image') {
+                    photoDisplay.src = url;
+                    photoDisplay.style.display = 'block';
+                    video.style.display = 'none';
+                    document.getElementById('photo-info').textContent = "Selected: " + file.name;
+                    document.getElementById('photo-info').style.display = 'block';
+                    currentSourceName = file.name;
+                    updateActionButton();
+                } else {
+                    video.src = url;
+                    video.style.display = 'block';
+                    photoDisplay.style.display = 'none';
+                    document.getElementById('video-info').textContent = "Selected: " + file.name;
+                    document.getElementById('video-info').style.display = 'block';
+                    currentSourceName = file.name;
+                    updateActionButton();
+                }
+            }
+        }
+
+        function updateActionButton() {
+            // Only show button if we have content
+            let hasContent = (currentMode === 'photo' && photoDisplay.src && photoDisplay.src !== window.location.href) || (currentMode === 'video' && video.src && video.src !== window.location.href);
+
+            // Different logic for Habitat? 
+            if (currentMode === 'habitat') hasContent = true; // Sim
+
+            actionBtn.style.display = 'block';
+
+            if (currentMode === 'photo') {
+                actionBtn.textContent = "Analyze Photo";
+                actionBtn.style.backgroundColor = "rgba(0, 122, 204, 0.8)";
+                actionBtn.style.color = "white";
+            } else if (currentMode === 'habitat') {
+                actionBtn.textContent = "Start Sim Analysis";
+                actionBtn.style.backgroundColor = "rgba(230, 190, 0, 0.9)";
+                actionBtn.style.color = "black";
+            } else {
+                if (isStreaming) {
+                    actionBtn.textContent = "Stop Analysis";
+                    actionBtn.style.backgroundColor = "rgba(204, 0, 0, 0.8)";
+                } else {
+                    actionBtn.textContent = "Start Video Analysis";
+                    actionBtn.style.backgroundColor = "rgba(0, 152, 24, 0.8)";
+                }
+            }
+
+            // Dimmed when no content
+            if (!hasContent) {
+                actionBtn.classList.add('btn-dimmed');
+            } else {
+                actionBtn.classList.remove('btn-dimmed');
+            }
+        }
+
+        function handleAction() {
+            if (currentMode === 'photo') {
+                analyzePhoto();
+            } else {
+                toggleStream();
+            }
+        }
+
+        function togglePromptInput() {
+            const isCustom = document.getElementById('use-custom-prompt').checked;
+            if (isCustom) {
+                promptInput.disabled = false;
+                promptInput.classList.add('active');
+                if (!promptInput.value || promptInput.value === BASE_PROMPT) {
+                    promptInput.focus();
+                }
+            } else {
+                promptInput.disabled = true;
+                promptInput.classList.remove('active');
+                promptInput.value = BASE_PROMPT; // Always revert to base
+            }
+            updateButtonStates();
+        }
+
+        async function savePrompt() {
+            const content = promptInput.value;
+            const name = prompt("Enter a name for this prompt (will be saved in /prompts):");
+            if (name) {
+                const formData = new FormData();
+                formData.append('name', name);
+                formData.append('content', content);
+
+                try {
+                    const res = await fetch('/save_prompt', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await res.json();
+                    alert(data.message);
+                } catch (e) {
+                    alert("Error saving prompt: " + e);
+                }
+            }
+        }
+
+        function updateFPS(val) {
+            captureIntervalSec = val;
+            fpsLabel.textContent = val;
+            if (isStreaming) {
+                stopStream();
+                startStream();
+            }
+        }
+
+        function captureFrameFromVideo() {
+            const context = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            return new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg'));
+        }
+
+        function getCurrentPrompt() {
+            const isCustom = document.getElementById('use-custom-prompt').checked;
+            if (isCustom) {
+                return promptInput.value;
+            } else {
+                return BASE_PROMPT;
+            }
+        }
+
+        function logDebug(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `<div style="margin-bottom: 5px; border-bottom: 1px solid #333; padding-bottom: 5px;"><span style="color:#569cd6">[${timestamp}]</span> <span style="color:#4ec9b0">DEBUG:</span> ${message}</div>`;
+            resultDisplay.insertAdjacentHTML('beforeend', logEntry); // Append
+            resultDisplay.scrollTop = resultDisplay.scrollHeight;
+        }
+
+        let lastResult = null;
+        let lastPrompt = null;
+        let lastMetadata = null;
+        let lastDebugLog = '';
+
+        function clearResult() {
+            resultDisplay.innerHTML = 'Waiting for input...';
+            lastResult = null;
+            lastPrompt = null;
+            lastMetadata = null;
+            lastDebugLog = '';
+            updateButtonStates();
+        }
+
+        function updateButtonStates() {
+            const resultEmpty = resultDisplay.textContent.trim() === 'Waiting for input...' || resultDisplay.textContent.trim() === '';
+            const promptEmpty = !promptInput.value || promptInput.value.trim() === '';
+
+            // Clear button
+            const clearBtn = document.getElementById('btn-clear-result');
+            if (resultEmpty) {
+                clearBtn.classList.add('btn-dimmed');
+            } else {
+                clearBtn.classList.remove('btn-dimmed');
+            }
+
+            // Save Result button
+            const saveResultBtn = document.getElementById('btn-save-result');
+            if (resultEmpty) {
+                saveResultBtn.classList.add('btn-dimmed');
+            } else {
+                saveResultBtn.classList.remove('btn-dimmed');
+            }
+
+            // Save Prompt button
+            const savePromptBtn = document.getElementById('btn-save-prompt');
+            if (promptEmpty) {
+                savePromptBtn.classList.add('btn-dimmed');
+            } else {
+                savePromptBtn.classList.remove('btn-dimmed');
+            }
+        }
+
+        async function saveCurrentResult() {
+            if (!lastResult) return;
+            const name = prompt("Enter a name for this result (will be saved in /results):");
+            if (!name) return;
+            const formData = new FormData();
+            formData.append('name', name);
+            formData.append('prompt', lastPrompt);
+            formData.append('content', lastResult);
+            formData.append('metadata', JSON.stringify(lastMetadata));
+            formData.append('debug_log', lastDebugLog);
+            formData.append('source_type', currentMode);
+            formData.append('source_name', currentSourceName || 'Unknown');
+
+            try {
+                const res = await fetch('/save_result', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                alert(data.message);
+            } catch (e) {
+                alert("Error saving result: " + e);
+            }
+        }
+
+        async function sendFileToBackend(fileBlob) {
+            if (!fileBlob) return;
+
+            const formData = new FormData();
+            formData.append('file', fileBlob, 'image.jpg');
+            formData.append('prompt', getCurrentPrompt());
+            formData.append('device_choice', selectedDevice);
+
+            logDebug(`Starting analysis [Device: ${selectedDevice}]...`);
+
+            // Check if there's an existing controller (e.g. from same mode double-click? though buttons usually disabled/hidden or logic prevents. But safe to replace). 
+            // Actually user logic said "tab switch". But cancelling previous on new start is also good practice.
+            if (currentAnalysisController) currentAnalysisController.abort();
+            currentAnalysisController = new AbortController();
+            const signal = currentAnalysisController.signal;
+
+            try {
+                const startTime = Date.now();
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    body: formData,
+                    signal: signal
+                });
+                const data = await response.json();
+                const totalDuration = ((Date.now() - startTime) / 1000).toFixed(2);
+
+                if (data.response.startsWith("Error")) {
+                    logDebug(`<span style="color:#f44747">FAILED: ${data.response}</span>`);
+                } else {
+                    const loadTime = data.debug?.load_time || "0s";
+                    const infTime = data.debug?.inference_time || "0s";
+
+                    logDebug(`<span style="color:#dcdcaa">SUCCESS: Total ${totalDuration}s (Load: ${loadTime}, Inf: ${infTime})</span>`);
+
+                    lastResult = data.response;
+                    lastPrompt = getCurrentPrompt();
+                    lastMetadata = data.debug;
+                    lastDebugLog = resultDisplay.innerText;
+                    updateButtonStates();
+
+                    const timestamp = new Date().toLocaleTimeString();
+                    const finalResult = `
+                        <div style="background: #333; padding: 20px; border-left: 6px solid #007acc; margin: 15px 0;">
+                            <div style="color:#569cd6; font-weight:bold; font-size: 20px; margin-bottom:10px;">[${timestamp}] RESULT:</div>
+                            <div style="margin-bottom:15px; font-size: 19px; line-height: 1.6;">${data.response}</div>
+                            <div style="border-top: 1px solid #555; padding-top: 12px; font-size: 16px; font-family: 'Consolas', monospace; color: #aaa;">
+                                <div style="display:flex; justify-content:space-between; margin-bottom: 5px;">
+                                    <span style="color: #4ec9b0; font-weight: bold;">Device: ${data.debug?.device || 'Unknown'}</span>
+                                    <span>Load: <span style="color:white;">${loadTime}</span> | Inf: <span style="color:white;">${infTime}</span></span>
+                                </div>
+                                <div style="display:flex; justify-content:space-between; margin-bottom: 5px;">
+                                    <span>Total Time: <span style="color:white;">${data.debug?.total_time}</span></span>
+                                </div>
+                                <div style="display:flex; justify-content:space-between;">
+                                    <span>RAM: <span style="color:white;">${data.debug?.ram_usage}</span></span>
+                                    <span>GPU: <span style="color:white;">${data.debug?.gpu_usage}</span></span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    resultDisplay.insertAdjacentHTML('beforeend', finalResult); // Append
+
+                    // Also show debug timing at the very bottom for easy visibility
+                    const debugSummary = `<div style="margin-top: 5px; padding: 5px 10px; background: #1e1e1e; border-left: 3px solid #4ec9b0; font-family: 'Consolas', monospace; font-size: 14px; color: #888;">DEBUG: SUCCESS: Total ${totalDuration}s (Load: ${loadTime}, Inf: ${infTime})</div>`;
+                    resultDisplay.insertAdjacentHTML('beforeend', debugSummary);
+                    resultDisplay.scrollTop = resultDisplay.scrollHeight;
+                }
+
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    console.log("Fetch aborted by user navigation or new request.");
+                    // Do not log error to UI
+                } else {
+                    console.error("Error:", error);
+                    logDebug(`<span style="color:#f44747">ERROR: Communication problem.</span>`);
+                }
+            } finally {
+                currentAnalysisController = null;
+            }
+        }
+
+        async function analyzePhoto() {
+            if (photoUpload.files && photoUpload.files[0]) {
+                await sendFileToBackend(photoUpload.files[0]);
+            }
+        }
+
+        function toggleStream() {
+            if (isStreaming) {
+                stopStream();
+            } else {
+                startStream();
+            }
+            updateActionButton();
+        }
+
+        function startStream() {
+            isStreaming = true;
+            // If video is paused, play it
+            if (video.paused) video.play();
+
+            const intervalMs = captureIntervalSec * 1000;
+            console.log(`Starting stream at ${captureIntervalSec}s interval (${intervalMs}ms)`);
+
+            streamInterval = setInterval(async () => {
+                // Capture frame from video element
+                const blob = await captureFrameFromVideo();
+                await sendFileToBackend(blob);
+            }, intervalMs);
+        }
+
+        function stopStream() {
+            isStreaming = false;
+            cancelCurrentAnalysis(); // Cancel any pending video frame analysis
+            if (streamInterval) {
+                clearInterval(streamInterval);
+                streamInterval = null;
+            }
+            video.pause();
+        }
+
+        // Initialize Default Mode
+        setMode('photo');
+        togglePromptInput(); // Set initial state of prompt input
+
+        // Listen for prompt changes
+        promptInput.addEventListener('input', updateButtonStates);
+
+        // Initial state check
+        updateButtonStates();
+
+    </script>
+
+</body>
+
+</html>
