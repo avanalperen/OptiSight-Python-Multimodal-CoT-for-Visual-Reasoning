@@ -1,0 +1,20 @@
+=== ANALYSIS RESULT ===
+Date/Time: 16-02-2026 12:27:19
+
+--- SOURCE ---
+Type: photo
+File: Image 1.png
+
+--- PROMPT ---
+Describe this image
+
+--- RESULT ---
+The image shows a large, weathered stone standing in a field. The stone is surrounded by a dirt path, and there is a surveillance camera positioned in the foreground, capturing the scene. The stone appears to be a significant landmark or historical site, possibly a megalithic structure or a burial mound. The surrounding field is barren, with no visible vegetation, and the sky is overcast.
+
+--- METADATA ---
+{"total_time":"3.98s","inference_time":"3.89s","load_time":"0.00s","ram_usage":"29.9% -> 31.3%","gpu_usage":"0% (4741/8192 MB) -> 97% (4769/8192 MB)","device":"GPU"}
+
+--- DEBUG LOG ---
+Waiting for input...
+[12:26:37 PM] DEBUG: Starting analysis [Device: cuda]...
+[12:26:41 PM] DEBUG: SUCCESS: Total 4.08s (Load: 0.00s, Inf: 3.89s)

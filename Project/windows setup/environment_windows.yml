@@ -1,0 +1,30 @@
+name: habitat-win
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pytorch
+  - torchvision
+  - torchaudio
+  - pytorch-cuda=11.8
+  - git
+  - pip
+  - pip:
+    - transformers
+    - qwen-vl-utils
+    - accelerate
+    - fastapi
+    - uvicorn
+    - python-multipart
+    - opencv-python
+    - pillow
+    - numpy
+    - scipy
+    - jinja2
+    - websockets
+    - av
+    # bitsandbytes is excluded to avoid Windows compatibility issues. 
+    # Use float16 mode (default in this project) which works without it.

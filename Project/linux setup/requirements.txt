@@ -1,0 +1,17 @@
+psutil
+fastapi
+uvicorn
+python-multipart
+opencv-python
+torch
+transformers
+qwen-vl-utils
+accelerate
+bitsandbytes
+pillow
+numpy
+scipy
+jinja2
+websockets
+torchvision
+av

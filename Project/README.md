@@ -1,84 +1,58 @@
-# OptiSight - Python Multimodal CoT for Visual Reasoning
-
-This project provides a web-based dashboard for performing visual reasoning tasks (analysis of images, videos, and habitat simulations) using the Qwen2-VL model.
-
-## Features
-- **Multimodal Analysis**: Upload photos or videos for analysis.
-- **Real-time Video Stream Analysis**: Analyze video feeds frame-by-frame.
-- **Custom Prompts**: Provide specific instructions for visual analysis.
-- **Resource Monitoring**: Track RAM and GPU usage.
-- **Result Saving**: Save analysis outputs for later review.
+# OptiSight Dashboard
 
 ## Requirements
+- Ubuntu
 - Python 3.8+
-- Nvidia GPU (recommended for performance, supports CUDA)
-  - Successfully tested with **RTX 3060**.
-- About 4-6GB VRAM for Qwen2-VL-2B (fp16).
-- 8GB+ System RAM.
+- CUDA GPU (Optional, for faster inference)
+- Torchvision, Av
 
-## Installation
+## 0. Prerequisites (Installing Conda)
+If you do not have Conda installed, we recommend **Miniconda** (a lightweight version).
 
-1. **Clone or Download** this repository.
-2. **Run Setup Script**:
-   This script creates a virtual environment and installs dependencies.
+**Quick Install (Linux):**
+```bash
+mkdir -p ~/miniconda3
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda3/miniconda.sh
+bash ~/miniconda3/miniconda.sh -b -u -p ~/miniconda3
+rm -rf ~/miniconda3/miniconda.sh
+source ~/miniconda3/bin/activate
+conda init --all
+```
+*After running these commands, close and reopen your terminal.*
+
+## Setup (Conda)
+1. Ensure you have Anaconda or Miniconda installed.
+2. Open a terminal in this directory.
+3. Run the setup script to create the environment:
    ```bash
-   ./setup.sh
+   cd linux_setup
+   bash setup_conda.sh
+   cd ..
    ```
    Or manually:
    ```bash
-   python3 -m venv venv
-   source venv/bin/activate
-   pip install -r requirements.txt
+   conda env create -f linux_setup/environment.yml
    ```
 
-3. **Download Model**:
-   You need to download the Qwen2-VL-2B-Instruct model (or similar).
-   - Recommended source: [HuggingFace](https://huggingface.co/Qwen/Qwen2-VL-2B-Instruct)
-   - Download the files and place them in a folder (e.g., `models/qwen2-vl-2b`).
-
-4. **Configuration**:
-   Copy the example environment file:
+## Running the Application
+1. Activate the Conda environment:
    ```bash
-   cp .env.example .env
+   conda activate habitat
    ```
-   Open `.env` and set `MODEL_PATH` to the absolute path where you downloaded the model.
-   ```
-   MODEL_PATH=/path/to/your/models/qwen2-vl-2b
-   ```
-
-## Usage
-
-1. **Activate Environment**:
+2. Start the server:
    ```bash
-   source venv/bin/activate
+   python server.py
    ```
+3. Open your web browser and navigate to:
+   http://localhost:8000
+   
+> **Note:** The model path is `/home/aavan/Desktop/Project Files/Vision Language Models/qwen2-vl-2b`.
 
-2. **Run Server**:
-   ```bash
-   python3 server.py
-   ```
-   The application should automatically open in your browser at `http://localhost:8000`.
-
-## Windows Installation & Usage
-
-1. **Install Python**: Ensure Python 3.8+ is installed and added to PATH.
-2. **Run Setup**:
-   Double-click `setup.bat`. This will create a virtual environment, install PyTorch with CUDA support (cu121), and other dependencies.
-3. **Configuration**:
-   Copy `.env.example` to `.env` (the script might do this for you) and edit it to point to your model path.
-4. **Run Server**:
-   Double-click `run.bat`.
-
-### Note on bitsandbytes (Windows)
-This project configuration excludes `bitsandbytes` by default to ensure compatibility on Windows. The server runs in FP16/FP32 mode, which works fine on GPUs like GTX 3060/RTX series without it. If you specifically need 4-bit/8-bit quantization:
-- You may need to install a Windows-compatible version manually.
-
-## Directory Structure
-- `server.py`: Main backend application (FastAPI).
-- `templates/`: HTML/JS frontend.
-- `prompts/`: Saved custom prompts.
-- `results/`: Saved analysis results.
-- `test images/` & `test videos/`: Sample media.
+## Deactivating the Environment
+To exit the environment when you are done, simply run:
+```bash
+conda deactivate
+```
 
 ## Troubleshooting
-- **CUDA/GPU Issues**: Ensure you have installed the correct PyTorch version for your CUDA driver. The `requirements.txt` installs a standard version, but you may need to install a specific one from [pytorch.org](https://pytorch.org/).
+- If you see `Segmentation fault`, ensure `bitsandbytes` is not forcing 4-bit mode on unsupported GPUs. The server now defaults to `float16` or CPU fallback.

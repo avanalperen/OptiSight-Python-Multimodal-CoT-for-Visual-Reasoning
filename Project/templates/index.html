@@ -205,7 +205,7 @@
             cursor: pointer;
             border: 2px solid white;
             transition: transform 0.1s;
-            min-width: 180px;
+            min-width: 160px;
         }
 
         #action-btn:active {
@@ -215,8 +215,8 @@
         .capture-rate-container {
             display: flex;
             align-items: center;
-            gap: 15px;
-            min-width: 250px;
+            gap: 8px;
+            width: fit-content;
         }
 
         .capture-rate-container label {
@@ -225,8 +225,8 @@
             white-space: nowrap;
         }
 
-        input[type="range"] {
-            flex-grow: 1;
+        #fps-slider {
+            width: 120px;
             height: 6px;
             background: #444;
             border-radius: 3px;
@@ -448,6 +448,65 @@
             pointer-events: none;
             cursor: default;
         }
+
+        /* Habitat Mode Selection Overlay */
+        .habitat-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            /* Dark background */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            z-index: 50;
+            display: none;
+            /* Hidden by default */
+        }
+
+        .habitat-btn {
+            padding: 15px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+            background-color: #333;
+            border: 2px solid #555;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 300px;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .habitat-btn:hover {
+            background-color: #444;
+            border-color: #007acc;
+            transform: scale(1.02);
+        }
+
+        .habitat-btn.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background-color: #222;
+            border-color: #333;
+        }
+
+        /* Route Drawing Canvas */
+        #route-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 40;
+            /* Above video, below overlay */
+            cursor: crosshair;
+            display: none;
+        }
     </style>
 </head>
 
@@ -474,7 +533,7 @@
                         </div>
 
                         <div id="sim-browse-area" style="display:none; align-items:center; gap: 10px;">
-                            <button class="browse-btn">Browse Sim</button>
+                            <button class="browse-btn" onclick="selectSim()">Browse Sim</button>
                             <div id="sim-info" class="file-info" style="display:none;"></div>
                         </div>
 
@@ -482,6 +541,7 @@
                             onchange="handleFileSelect(this, 'image')">
                         <input type="file" id="video-upload" accept="video/*"
                             onchange="handleFileSelect(this, 'video')">
+                        <input type="file" id="sim-upload" accept=".glb,.json" onchange="handleFileSelect(this, 'sim')">
                     </div>
                 </div>
             </div>
@@ -489,7 +549,29 @@
             <div class="video-container">
                 <video id="video-feed" controls playsinline style="display:none;"></video>
                 <img id="captured-photo" style="display:none;" />
-                <canvas id="canvas" style="display:none;"></canvas>
+                <canvas id="canvas" style="display:none;"></canvas> <!-- Original canvas for photo capture? -->
+                <canvas id="route-canvas"></canvas> <!-- New canvas for route drawing -->
+
+                <div id="habitat-selection-overlay" class="habitat-overlay">
+                    <h2 style="color: white; margin-bottom: 20px;">Select Habitat Mode</h2>
+                    <button class="habitat-btn" onclick="selectHabitatMode('record')">Record Route Video</button>
+                    <button class="habitat-btn" onclick="selectHabitatMode('live')">Live Control</button>
+                    <button class="habitat-btn disabled" disabled>Autonomous VLM (Coming Soon)</button>
+                    <button id="cancel-habitat-overlay"
+                        style="margin-top:20px; background:transparent; border:none; color:#aaa; cursor:pointer;"
+                        onclick="document.getElementById('habitat-selection-overlay').style.display='none'">Cancel</button>
+                </div>
+
+                <div id="scene-selection-overlay" class="habitat-overlay">
+                    <h2 style="color: white; margin-bottom: 20px;">Select a Habitat Scene</h2>
+                    <div id="scene-list"
+                        style="display:flex; flex-direction:column; gap:10px; max-height: 300px; overflow-y:auto; width: 100%; align-items: center;">
+                        <!-- Scenes will be populated here -->
+                    </div>
+                    <button style="margin-top:20px; background:transparent; border:none; color:#aaa; cursor:pointer;"
+                        onclick="document.getElementById('scene-selection-overlay').style.display='none'">Cancel</button>
+                </div>
+
                 <div id="placeholder-text" style="color: #666;">Select a Source</div>
             </div>
 
@@ -510,18 +592,23 @@
                 </div>
 
                 <div class="action-row">
-                    <div class="device-toggle">
-                        <button id="device-cpu" class="active" onclick="setDevice('cpu')">CPU</button>
-                        <button id="device-gpu" onclick="setDevice('cuda')">GPU</button>
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        <div class="device-toggle" style="width: 120px;">
+                            <button id="device-cpu" onclick="setDevice('cpu')">CPU</button>
+                            <button id="device-gpu" class="active" onclick="setDevice('cuda')">GPU</button>
+                        </div>
+                        <button id="load-model-btn" onclick="toggleLoadModel()"
+                            style="padding: 6px 10px; font-size: 11px; background: #444; color: #ccc; border: 1px solid #666; cursor: pointer; border-radius: 4px; font-weight: bold; width: 120px;">Load
+                            Model</button>
+                    </div>
+
+                    <div class="capture-rate-container" id="fps-control" style="display: none;">
+                        <label>Every: <span id="fps-val">3</span>s</label>
+                        <input type="range" id="fps-slider" min="3" max="7" step="2" value="3"
+                            oninput="updateFPS(this.value)">
                     </div>
 
                     <button id="action-btn" onclick="handleAction()" style="display: none;"></button>
-                </div>
-
-                <div class="capture-rate-container" id="fps-control" style="opacity: 0.5; pointer-events: none;">
-                    <label>Capture every: <span id="fps-val">1</span>s</label>
-                    <input type="range" id="fps-slider" min="1" max="5" step="1" value="1"
-                        oninput="updateFPS(this.value)">
                 </div>
             </div>
         </div>
@@ -588,21 +675,90 @@
         const videoUpload = document.getElementById('video-upload');
 
         let currentMode = null;
-        let streamInterval = null;
-        let captureIntervalSec = 1;
+        let streamTimeout = null;
+        let lastAnalysisTimestamp = 0;
+        let remainingTimeAtPause = 0;
+        let captureIntervalSec = 3;
         let currentSourceName = '';
         let isStreaming = false;
-        let selectedDevice = 'cpu';
+        let selectedDevice = 'cuda';
+        let isModelLoaded = false;
 
         let currentAnalysisController = null; // Controller for cancelling pending requests
 
         const BASE_PROMPT = "Describe this image";
 
         function setDevice(device) {
+            if (device === 'cpu' && selectedDevice !== 'cpu') {
+                const confirmMessage = "Do you want to continue?\n\nWARNING : IT CAN COLLAPSE YOUR SYSTEM";
+                if (!confirm(confirmMessage)) {
+                    return; // Stays on current device
+                }
+            }
             selectedDevice = device;
             document.getElementById('device-cpu').classList.toggle('active', device === 'cpu');
             document.getElementById('device-gpu').classList.toggle('active', device === 'cuda');
             console.log("Device selected:", device);
+
+            // If device changes and model was loaded, it will be reloaded on next analysis or manual load
+            // For simplicity, we just reset the button state
+            resetLoadButton();
+        }
+
+        function resetLoadButton() {
+            const btn = document.getElementById('load-model-btn');
+            btn.textContent = "Load Model";
+            btn.style.background = "#444";
+            btn.style.color = "#ccc";
+            btn.disabled = false;
+            isModelLoaded = false;
+        }
+
+        async function toggleLoadModel() {
+            const btn = document.getElementById('load-model-btn');
+
+            if (!isModelLoaded) {
+                // LOAD Path
+                btn.disabled = true;
+                btn.textContent = "Loading...";
+
+                const formData = new FormData();
+                formData.append('device_choice', selectedDevice);
+
+                try {
+                    const res = await fetch('/load_model', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await res.json();
+                    if (data.status === 'success') {
+                        btn.textContent = "Unload Model";
+                        btn.style.background = "#007acc";
+                        btn.style.color = "white";
+                        btn.disabled = false;
+                        isModelLoaded = true;
+                    } else {
+                        btn.textContent = "Retry Load";
+                        btn.disabled = false;
+                    }
+                } catch (e) {
+                    btn.textContent = "Error";
+                    btn.disabled = false;
+                }
+            } else {
+                // UNLOAD Path
+                btn.disabled = true;
+                btn.textContent = "Unloading...";
+
+                try {
+                    const res = await fetch('/unload_model', { method: 'POST' });
+                    const data = await res.json();
+                    resetLoadButton();
+                } catch (e) {
+                    btn.textContent = "Error Unload";
+                    btn.disabled = false;
+                }
+            }
         }
 
         function cancelCurrentAnalysis() {
@@ -614,10 +770,10 @@
         }
 
         function setMode(mode) {
-            if (currentMode === mode) return;
-            cancelCurrentAnalysis(); // Cancel any pending operations from previous mode
+            cancelCurrentAnalysis(); // Cancel any pending operations
             currentMode = mode;
-            console.log("Mode set to:", mode);
+            currentSourceName = ''; // Reset source name
+            console.log("Mode clicked:", mode);
 
             // UI Updates
             document.querySelectorAll('.mode-controls button').forEach(b => b.classList.remove('active'));
@@ -655,20 +811,264 @@
                 document.getElementById('photo-browse-area').style.display = 'flex';
             } else if (mode === 'video') {
                 document.getElementById('video-browse-area').style.display = 'flex';
-            } else {
+            } else if (mode === 'habitat') {
                 document.getElementById('sim-browse-area').style.display = 'flex';
-                placeholder.textContent = "AI Habitat Interface (Placeholder)";
+                // Show mode selection overlay ONLY IF NOT ALREADY INITIALIZED (optional, but good for UX)
+                // For now, let's show it when they click "AI Habitat Sim" tab to force a choice? 
+                // Or maybe just let them browse/upload first. 
+                // The user request says "reset to initial state", so we show overlay.
+                document.getElementById('habitat-selection-overlay').style.display = 'flex';
             }
 
             // FPS (Interval) visibility
             const fpsControl = document.getElementById('fps-control');
+
+            // Habitat Specific Reset
+            document.getElementById('habitat-selection-overlay').style.display = 'none';
+            document.getElementById('route-canvas').style.display = 'none';
+            // Clear route canvas
+            const routeCanvas = document.getElementById('route-canvas');
+            const cw = routeCanvas.width; // Use internal width if set, or we set it later
+            const ch = routeCanvas.height;
+            const ctx = routeCanvas.getContext('2d');
+            ctx.clearRect(0, 0, cw, ch);
+
             if (mode === 'photo') {
-                fpsControl.style.opacity = '0.5';
-                fpsControl.style.pointerEvents = 'none';
+                fpsControl.style.display = 'none';
+            } else if (mode === 'video') {
+                fpsControl.style.display = 'flex';
             } else {
-                fpsControl.style.opacity = '1';
-                fpsControl.style.pointerEvents = 'auto';
+                // HABITAT MODE INITIAL STATE
+                fpsControl.style.display = 'none'; // Hidden until mode selected? Or always hidden for selection screen
+                document.getElementById('habitat-selection-overlay').style.display = 'flex';
+                placeholder.textContent = "AI Habitat Interface"; // Placeholder text behind overlay
+
+                // Hide browse button initially until sub-mode is selected?
+                // Request says: "Start Sim Analysis button's name and operation should be specific to this tab (Record Video)"
+                // But we first need to select the mode.
+                document.getElementById('sim-browse-area').style.display = 'none';
             }
+        }
+
+        async function selectSim() {
+            try {
+                const res = await fetch('/list_scenes');
+                const data = await res.json();
+                const scenes = data.scenes;
+
+                const listContainer = document.getElementById('scene-list');
+                listContainer.innerHTML = '';
+
+                if (scenes.length === 0) {
+                    listContainer.innerHTML = '<div style="color:#aaa;">No scenes found in "test habitats"</div>';
+                } else {
+                    scenes.forEach(scene => {
+                        const btn = document.createElement('button');
+                        btn.className = 'habitat-btn';
+                        btn.style.width = '80%';
+                        btn.style.padding = '10px';
+                        btn.style.fontSize = '16px';
+                        btn.textContent = scene;
+                        btn.onclick = () => loadScene(scene);
+                        listContainer.appendChild(btn);
+                    });
+                }
+
+                document.getElementById('scene-selection-overlay').style.display = 'flex';
+            } catch (e) {
+                console.error("Failed to list scenes:", e);
+                alert("Failed to list scenes: " + e);
+            }
+        }
+
+        async function loadScene(sceneName) {
+            document.getElementById('scene-selection-overlay').style.display = 'none';
+
+            const formData = new FormData();
+            formData.append('scene_name', sceneName);
+
+            try {
+                const res = await fetch('/init_sim', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    document.getElementById('sim-info').textContent = sceneName;
+                    document.getElementById('sim-info').style.display = 'block';
+                    alert("Scene loaded: " + sceneName);
+                    // Show habitat mode overlay after scene load
+                    document.getElementById('habitat-selection-overlay').style.display = 'flex';
+                } else {
+                    alert("Error loading scene: " + data.message);
+                }
+            } catch (e) {
+                alert("Error: " + e);
+            }
+        }
+
+        let habitatSubMode = null;
+        let routePoints = [];
+
+        function selectHabitatMode(subMode) {
+            habitatSubMode = subMode;
+            document.getElementById('habitat-selection-overlay').style.display = 'none';
+
+            // Show Sim Browse Area now
+            document.getElementById('sim-browse-area').style.display = 'flex';
+
+            const actionBtn = document.getElementById('action-btn');
+
+            if (subMode === 'record') {
+                actionBtn.textContent = "Record Video";
+                actionBtn.style.display = 'block';
+                actionBtn.onclick = handleRecordVideo;
+
+                // Enable Route Drawing
+                const rc = document.getElementById('route-canvas');
+                rc.style.display = 'block';
+                // Resize canvas to match container
+                const container = document.querySelector('.video-container');
+                rc.width = container.clientWidth;
+                rc.height = container.clientHeight;
+
+                placeholder.textContent = "Browse a Sim, then click to draw route.";
+
+            } else if (subMode === 'live') {
+                actionBtn.textContent = "Start Sim Analysis";
+                actionBtn.style.display = 'block';
+                actionBtn.onclick = handleAction; // Standard analysis loop
+
+                placeholder.textContent = "Browse a Sim, then use WASD + Mouse to control.";
+
+                // Enable inputs
+                window.addEventListener('keydown', handleLiveControlKey);
+                // Mouse control would likely require pointer lock or similar, simple version for now
+                // window.addEventListener('mousemove', handleLiveControlMouse);
+            }
+
+            updateActionButton(); // Re-evaluate button state based on loaded file
+        }
+
+        function handleRecordVideo() {
+            if (routePoints.length < 2) {
+                alert("Please draw a route with at least 2 points (Start and End).");
+                return;
+            }
+
+            const btn = document.getElementById('action-btn');
+            btn.disabled = true;
+            btn.textContent = "Recording...";
+
+            // Prepare points
+            const pointsStr = routePoints.map(p => `${p.x},${p.y},0`).join(';'); // Backend expects x,y or x,y,z? 
+            // Wait, the backend generate_video expects start_point and end_point as "x,y,z".
+            // We need to clarify if it supports a full path. 
+            // The specific request says: "fix angle ile cizilen rotada hareket eden robotun gozunden olan video kaybedilmeli"
+            // My backend currently only supports start/end. I will need to update backend too. 
+            // For now, let's send what we can.
+
+            // Actually, 3D points from 2D canvas click is hard without a top-down map calibration.
+            // Placeholder: We will just trigger the backend generation with random points or if we had a map.
+            // Since we don't have a map, clicks on a blank screen are meaningless for coordinates.
+            // BUT, the user asked to "draw a route". 
+            // I will implement the UI interaction now, and we will mock the coordinates or improve backend 
+            // to generated a random valid path if coordinates are not map-relative.
+
+            // Let's assume for now we just trigger the generation as before but with "Record" UI.
+
+            generateVideoFromRoute();
+        }
+
+        async function generateVideoFromRoute() {
+            // ... call backend
+            // Reusing existing generate_video for now, will improve in next step
+            const formData = new FormData();
+            // formData.append('points', JSON.stringify(routePoints)); // Future
+
+            try {
+                const res = await fetch('/generate_video', { method: 'POST', body: formData });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    // Auto play result
+                    video.src = data.video_url;
+                    video.style.display = 'block';
+                    placeholder.style.display = 'none';
+                    document.getElementById('route-canvas').style.display = 'none'; // Hide drawing
+                } else {
+                    alert("Error: " + data.message);
+                }
+            } catch (e) {
+                alert("Error: " + e);
+            }
+
+            const btn = document.getElementById('action-btn');
+            btn.disabled = false;
+            btn.textContent = "Record Video";
+        }
+
+        // Route Drawing Interactions
+        const rc = document.getElementById('route-canvas');
+        rc.addEventListener('click', (e) => {
+            if (habitatSubMode !== 'record') return;
+
+            const rect = rc.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            // Visual feedback
+            const ctx = rc.getContext('2d');
+            ctx.fillStyle = '#007acc';
+            ctx.beginPath();
+            ctx.arc(x, y, 5, 0, Math.PI * 2);
+            ctx.fill();
+
+            if (routePoints.length > 0) {
+                const last = routePoints[routePoints.length - 1];
+                ctx.strokeStyle = '#007acc';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(last.visX, last.visY); // Use visual coords
+                ctx.lineTo(x, y);
+                ctx.stroke();
+            }
+
+            // Store normalized or visual coords? 
+            // Without map, visual is all we have. 
+            routePoints.push({ visX: x, visY: y, x: x / rect.width, y: y / rect.height });
+        });
+
+        function handleLiveControlKey(e) {
+            if (habitatSubMode !== 'live') return;
+            const key = e.key.toLowerCase();
+            let action = '';
+            if (key === 'w') action = 'move_forward';
+            if (key === 's') action = 'move_backward'; // Need to impl
+            if (key === 'a') action = 'turn_left';
+            if (key === 'd') action = 'turn_right';
+
+            if (action) {
+                sendMoveCommand(action);
+            }
+        }
+
+        async function sendMoveCommand(action) {
+            const fd = new FormData();
+            fd.append('command', action);
+            try {
+                // If live video is needed, we might need a faster loop or websocket.
+                // For now, simple fetch response image update.
+                const res = await fetch('/move', { method: 'POST', body: fd });
+                const data = await res.json();
+                if (data.status === 'success' && data.frame) {
+                    // Update video/image feed
+                    // Use captured-photo for frame updates?
+                    photoDisplay.src = "data:image/jpeg;base64," + data.frame;
+                    photoDisplay.style.display = 'block';
+                    placeholder.style.display = 'none';
+                    video.style.display = 'none';
+                }
+            } catch (e) { console.error(e); }
         }
 
         function handleFileSelect(input, type) {
@@ -686,7 +1086,7 @@
                     document.getElementById('photo-info').style.display = 'block';
                     currentSourceName = file.name;
                     updateActionButton();
-                } else {
+                } else if (type === 'video') {
                     video.src = url;
                     video.style.display = 'block';
                     photoDisplay.style.display = 'none';
@@ -694,16 +1094,52 @@
                     document.getElementById('video-info').style.display = 'block';
                     currentSourceName = file.name;
                     updateActionButton();
+                } else if (type === 'sim') {
+                    currentSourceName = file.name;
+                    const simInfo = document.getElementById('sim-info');
+                    simInfo.textContent = "Selected Sim: " + file.name;
+                    simInfo.style.display = 'block';
+                    placeholder.textContent = `Connected to: ${file.name}`;
+                    updateActionButton();
+
+                    // Proactively try to initialize the sim on the backend
+                    // Note: In a real scenario, we might need to upload the file first
+                    // For now, we'll assume the backend can handle the name or we'll need to update /init_sim
+                    initializeSim(file);
                 }
+            }
+        }
+
+        function selectSim() {
+            document.getElementById('sim-upload').click();
+        }
+
+        async function initializeSim(file) {
+            logDebug(`Initializing simulator with ${file.name}...`);
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const res = await fetch('/init_sim', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.status === 'success') {
+                    logDebug(`Simulator initialized successfully.`);
+                } else {
+                    logDebug(`<span style="color:#f44747">Init Failed: ${data.message}</span>`);
+                }
+            } catch (e) {
+                logDebug(`<span style="color:#f44747">Error: ${e}</span>`);
             }
         }
 
         function updateActionButton() {
             // Only show button if we have content
-            let hasContent = (currentMode === 'photo' && photoDisplay.src && photoDisplay.src !== window.location.href) || (currentMode === 'video' && video.src && video.src !== window.location.href);
-
-            // Different logic for Habitat? 
-            if (currentMode === 'habitat') hasContent = true; // Sim
+            let hasContent = (currentMode === 'photo' && photoDisplay.src && photoDisplay.src !== window.location.href) ||
+                (currentMode === 'video' && video.src && video.src !== window.location.href) ||
+                (currentMode === 'habitat' && currentSourceName !== '');
 
             actionBtn.style.display = 'block';
 
@@ -712,24 +1148,49 @@
                 actionBtn.style.backgroundColor = "rgba(0, 122, 204, 0.8)";
                 actionBtn.style.color = "white";
             } else if (currentMode === 'habitat') {
-                actionBtn.textContent = "Start Sim Analysis";
-                actionBtn.style.backgroundColor = "rgba(230, 190, 0, 0.9)";
-                actionBtn.style.color = "black";
-            } else {
+                if (habitatSubMode === 'record') {
+                    actionBtn.textContent = "Record Video";
+                    actionBtn.style.backgroundColor = "rgba(200, 50, 50, 0.9)";
+                    actionBtn.style.color = "white";
+                } else {
+                    // Live or default
+                    if (isStreaming) {
+                        actionBtn.textContent = "Stop Analysis";
+                        actionBtn.style.backgroundColor = "rgba(204, 0, 0, 0.8)";
+                        actionBtn.style.color = "white";
+                    } else {
+                        actionBtn.textContent = "Start Sim Analysis";
+                        actionBtn.style.backgroundColor = "rgba(230, 190, 0, 0.9)";
+                        actionBtn.style.color = "black";
+                    }
+                }
+            } else if (currentMode === 'video') {
                 if (isStreaming) {
-                    actionBtn.textContent = "Stop Analysis";
-                    actionBtn.style.backgroundColor = "rgba(204, 0, 0, 0.8)";
+                    if (video.paused) {
+                        actionBtn.textContent = "Wait (Paused)";
+                        actionBtn.style.backgroundColor = "rgba(230, 190, 0, 0.9)";
+                        actionBtn.style.color = "black";
+                    } else {
+                        actionBtn.textContent = "Stop Analysis";
+                        actionBtn.style.backgroundColor = "rgba(204, 0, 0, 0.8)";
+                        actionBtn.style.color = "white";
+                    }
                 } else {
                     actionBtn.textContent = "Start Video Analysis";
                     actionBtn.style.backgroundColor = "rgba(0, 152, 24, 0.8)";
+                    actionBtn.style.color = "white";
                 }
             }
 
-            // Dimmed when no content
+            // Dimmed when no content (checks)
+            const fpsControl = document.getElementById('fps-control');
+            // For Habitat Record mode, we need content (sim selected) AND we ignore isStreaming
             if (!hasContent) {
                 actionBtn.classList.add('btn-dimmed');
+                fpsControl.classList.add('btn-dimmed');
             } else {
                 actionBtn.classList.remove('btn-dimmed');
+                fpsControl.classList.remove('btn-dimmed');
             }
         }
 
@@ -740,6 +1201,8 @@
                 toggleStream();
             }
         }
+
+
 
         function togglePromptInput() {
             const isCustom = document.getElementById('use-custom-prompt').checked;
@@ -977,27 +1440,40 @@
 
         function startStream() {
             isStreaming = true;
-            // If video is paused, play it
-            if (video.paused) video.play();
+            if (video.paused && currentMode === 'video') video.play();
 
-            const intervalMs = captureIntervalSec * 1000;
-            console.log(`Starting stream at ${captureIntervalSec}s interval (${intervalMs}ms)`);
-
-            streamInterval = setInterval(async () => {
-                // Capture frame from video element
-                const blob = await captureFrameFromVideo();
-                await sendFileToBackend(blob);
-            }, intervalMs);
+            console.log(`Starting stream analysis...`);
+            remainingTimeAtPause = 0;
+            scheduleNextAnalysis(0);
         }
 
         function stopStream() {
             isStreaming = false;
-            cancelCurrentAnalysis(); // Cancel any pending video frame analysis
-            if (streamInterval) {
-                clearInterval(streamInterval);
-                streamInterval = null;
+            cancelCurrentAnalysis(); // For total stop, we do cancel pending
+            if (streamTimeout) {
+                clearTimeout(streamTimeout);
+                streamTimeout = null;
             }
-            video.pause();
+            if (currentMode === 'video') video.pause();
+        }
+
+        function scheduleNextAnalysis(delay) {
+            if (streamTimeout) clearTimeout(streamTimeout);
+            streamTimeout = setTimeout(triggerAnalysisStep, delay);
+        }
+
+        async function triggerAnalysisStep() {
+            if (!isStreaming) return;
+            if (currentMode === 'video' && video.paused) return;
+
+            lastAnalysisTimestamp = Date.now();
+            const blob = await captureFrameFromVideo();
+            await sendFileToBackend(blob);
+
+            // Schedule next if still active and not paused
+            if (isStreaming && (currentMode !== 'video' || !video.paused)) {
+                scheduleNextAnalysis(captureIntervalSec * 1000);
+            }
         }
 
         // Initialize Default Mode
@@ -1009,6 +1485,41 @@
 
         // Initial state check
         updateButtonStates();
+
+        // Stop/Pause analysis based on video state
+        video.addEventListener('ended', () => {
+            if (isStreaming && currentMode === 'video') {
+                console.log("Video ended, stopping analysis.");
+                stopStream();
+                updateActionButton();
+            }
+        });
+
+        video.addEventListener('pause', () => {
+            if (isStreaming && currentMode === 'video') {
+                // Calculate remaining time
+                const elapsed = Date.now() - lastAnalysisTimestamp;
+                remainingTimeAtPause = (captureIntervalSec * 1000) - elapsed;
+                if (remainingTimeAtPause < 0) remainingTimeAtPause = 0;
+
+                console.log(`Video paused. Remaining time for next analysis: ${remainingTimeAtPause}ms`);
+
+                if (streamTimeout) {
+                    clearTimeout(streamTimeout);
+                    streamTimeout = null;
+                }
+                updateActionButton();
+                // Note: We do NOT cancelCurrentAnalysis() here so the last one can finish
+            }
+        });
+
+        video.addEventListener('play', () => {
+            if (isStreaming && currentMode === 'video' && !streamTimeout) {
+                console.log(`Video resumed. Rescheduling analysis in ${remainingTimeAtPause}ms`);
+                scheduleNextAnalysis(remainingTimeAtPause);
+                updateActionButton();
+            }
+        });
 
     </script>
 

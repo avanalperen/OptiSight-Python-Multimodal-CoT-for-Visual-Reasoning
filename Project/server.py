@@ -15,9 +15,16 @@ import psutil
 import gc
 import time
 import webbrowser
-from dotenv import load_dotenv
+import webbrowser
+try:
+    from habitat_controller import HabitatController
+    HABITAT_AVAILABLE = True
+except ImportError:
+    HabitatController = None
+    HABITAT_AVAILABLE = False
+    logger.warning("Habitat Sim not found or failed to load. Simulation features will be disabled.")
 
-load_dotenv()
+import config
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -25,9 +32,7 @@ logger = logging.getLogger(__name__)
 
 # Model Path
 # Model Path
-# Use environment variable or fallback to local path (for development machine)
-DEFAULT_MODEL_PATH = "/home/aavan/Desktop/Project Files/Vision Language Models/qwen2-vl-2b"
-MODEL_PATH = os.getenv("MODEL_PATH", DEFAULT_MODEL_PATH)
+MODEL_PATH = config.MODEL_PATH
 
 # Global model and processor
 model = None
@@ -35,6 +40,12 @@ processor = None
 
 def get_ram_usage():
     return psutil.virtual_memory().percent
+
+# Global Habitat Controller
+habitat_controller = None
+# Global Habitat Controller
+habitat_controller = None
+SCENE_PATH = config.SCENE_PATH
 
 def get_gpu_info():
     """Returns GPU usage percentage and memory if available."""
@@ -185,9 +196,18 @@ def load_model_on_demand(device_choice="cpu"):
     
     # Cleanup previous model if exists
     if model is not None:
+        try:
+            model.to("cpu")
+        except:
+            pass
         del model
+        del processor
+        model = None
+        processor = None
         gc.collect()
+        gc.collect() # Multiple passes for circular refs
         if torch.cuda.is_available():
+            torch.cuda.synchronize()
             torch.cuda.empty_cache()
 
     start_load = time.time()
@@ -198,7 +218,8 @@ def load_model_on_demand(device_choice="cpu"):
             model = Qwen2VLForConditionalGeneration.from_pretrained(
                 MODEL_PATH,
                 torch_dtype=torch.float16,
-                device_map="auto"
+                device_map="auto",
+                attn_implementation="sdpa"
             )
         else:
             model = Qwen2VLForConditionalGeneration.from_pretrained(
@@ -210,8 +231,8 @@ def load_model_on_demand(device_choice="cpu"):
         
         processor = AutoProcessor.from_pretrained(
             MODEL_PATH, 
-            min_pixels=256*28*28, 
-            max_pixels=512*28*28
+            min_pixels=16*28*28, 
+            max_pixels=128*28*28
         )
         load_time = time.time() - start_load
         logger.info(f"Model loaded on {device_choice} in {load_time:.2f}s")
@@ -221,6 +242,34 @@ def load_model_on_demand(device_choice="cpu"):
         model = None
         processor = None
         raise e
+
+@app.post("/load_model")
+async def load_model_endpoint(device_choice: str = Form("cuda")):
+    try:
+        load_time = load_model_on_demand(device_choice)
+        return {"status": "success", "message": f"Model loaded on {device_choice} in {load_time:.2f}s"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.post("/unload_model")
+async def unload_model_endpoint():
+    global model, processor
+    if model is not None:
+        try:
+            model.to("cpu")
+        except:
+            pass
+        del model
+        del processor
+        model = None
+        processor = None
+        gc.collect()
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+            torch.cuda.empty_cache()
+    logger.info("Model unloaded from memory.")
+    return {"status": "success", "message": "Model unloaded from memory"}
 
 @app.post("/analyze")
 async def analyze(
@@ -275,7 +324,7 @@ async def analyze(
         # Inference with no_grad for memory efficiency
         inference_start = time.time()
         with torch.no_grad():
-            generated_ids = model.generate(**inputs, max_new_tokens=128)
+            generated_ids = model.generate(**inputs, max_new_tokens=200, do_sample=False)
         inference_end = time.time()
             
         generated_ids_trimmed = [
@@ -315,5 +364,91 @@ async def analyze(
         logger.error(f"Error during analysis: {e}")
         return {"response": f"Error: {str(e)}"}
 
+# --- Habitat Routes ---
+
+@app.get("/list_scenes")
+async def list_scenes():
+    scene_dir = "test habitats"
+    if not os.path.exists(scene_dir):
+        return {"scenes": []}
+    scenes = [f for f in os.listdir(scene_dir) if f.endswith('.glb') or f.endswith('.json')]
+    return {"scenes": sorted(scenes)}
+
+@app.post("/init_sim")
+async def init_sim(file: UploadFile = File(None), scene_name: str = Form(None)):
+    global habitat_controller
+    if not HABITAT_AVAILABLE:
+        return {"status": "error", "message": "Habitat Sim is not installed or supported on this system."}
+    
+    try:
+        if file:
+            # Save uploaded file to test habitats
+            upload_dir = "test habitats"
+            os.makedirs(upload_dir, exist_ok=True)
+            filepath = os.path.join(upload_dir, file.filename)
+            contents = await file.read()
+            with open(filepath, "wb") as f:
+                f.write(contents)
+            scene_to_use = filepath
+            logger.info(f"Using uploaded scene: {scene_to_use}")
+        elif scene_name:
+            scene_to_use = os.path.join("test habitats", scene_name)
+            if not os.path.exists(scene_to_use):
+                return {"status": "error", "message": f"Scene {scene_name} not found"}
+            logger.info(f"Using selected scene: {scene_to_use}")
+        else:
+            scene_to_use = SCENE_PATH
+            logger.info(f"Using default scene: {scene_to_use}")
+
+        habitat_controller = HabitatController(scene_to_use)
+        return {"status": "success", "message": f"Simulator initialized with {os.path.basename(scene_to_use)}"}
+    except Exception as e:
+        logger.error(f"Failed to init simulator: {e}")
+        return {"status": "error", "message": str(e)}
+
+@app.post("/move")
+async def move_agent(command: str = Form(...)):
+    global habitat_controller
+    if habitat_controller is None:
+        return {"status": "error", "message": "Simulator not initialized"}
+    
+    try:
+        frame_base64 = habitat_controller.move_agent(command)
+        return {"status": "success", "frame": frame_base64}
+    except Exception as e:
+        logger.error(f"Movement error: {e}")
+        return {"status": "error", "message": str(e)}
+
+@app.post("/generate_video")
+async def generate_video(
+    points: str = Form(None), # JSON string of points list
+    filename: str = Form("route_video.mp4")
+):
+    global habitat_controller
+    if habitat_controller is None:
+        return {"status": "error", "message": "Simulator not initialized"}
+    
+    try:
+        # Parse points if provided
+        parsed_points = None
+        if points:
+            import json
+            try:
+                # Expecting [[x,y,z], [x,y,z]]
+                parsed_points = json.loads(points)
+            except:
+                pass
+        
+        filepath = os.path.join("static/test_videos", filename)
+        success, result = habitat_controller.generate_route_video(parsed_points, filepath)
+        
+        if success:
+            return {"status": "success", "video_url": f"/static/test_videos/{filename}"}
+        else:
+            return {"status": "error", "message": result}
+    except Exception as e:
+        logger.error(f"Video generation error: {e}")
+        return {"status": "error", "message": str(e)}
+
 if __name__ == "__main__":
-    uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=False)
