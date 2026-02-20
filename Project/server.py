@@ -45,6 +45,8 @@ def get_ram_usage():
 habitat_controller = None
 # Global Habitat Controller
 habitat_controller = None
+import threading
+habitat_lock = threading.Lock()
 SCENE_PATH = config.SCENE_PATH
 
 def get_gpu_info():
@@ -201,14 +203,17 @@ def load_model_on_demand(device_choice="cpu"):
         except:
             pass
         del model
-        del processor
         model = None
+    if processor is not None:
+        del processor
         processor = None
-        gc.collect()
-        gc.collect() # Multiple passes for circular refs
-        if torch.cuda.is_available():
-            torch.cuda.synchronize()
-            torch.cuda.empty_cache()
+        
+    gc.collect()
+    gc.collect() # Multiple passes
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.ipc_collect()
+        torch.cuda.synchronize()
 
     start_load = time.time()
     logger.info(f"Loading model on {device_choice}...")
@@ -260,15 +265,22 @@ async def unload_model_endpoint():
         except:
             pass
         del model
-        del processor
         model = None
+    if processor is not None:
+        del processor
         processor = None
-        gc.collect()
-        gc.collect()
-        if torch.cuda.is_available():
-            torch.cuda.synchronize()
-            torch.cuda.empty_cache()
-    logger.info("Model unloaded from memory.")
+        
+    # Force Python GC first
+    gc.collect()
+    gc.collect()
+    
+    # Then force PyTorch CUDA Memory allocator release
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.ipc_collect()
+        torch.cuda.synchronize()
+        
+    logger.info("Model unloaded from memory. Cleanup complete.")
     return {"status": "success", "message": "Model unloaded from memory"}
 
 @app.post("/analyze")
@@ -368,7 +380,7 @@ async def analyze(
 
 @app.get("/list_scenes")
 async def list_scenes():
-    scene_dir = "test habitats"
+    scene_dir = "/home/aavan/Desktop/Project Files/My Python Project/Project/test habitats"
     if not os.path.exists(scene_dir):
         return {"scenes": []}
     scenes = [f for f in os.listdir(scene_dir) if f.endswith('.glb') or f.endswith('.json')]
@@ -383,7 +395,7 @@ async def init_sim(file: UploadFile = File(None), scene_name: str = Form(None)):
     try:
         if file:
             # Save uploaded file to test habitats
-            upload_dir = "test habitats"
+            upload_dir = "/home/aavan/Desktop/Project Files/My Python Project/Project/test habitats"
             os.makedirs(upload_dir, exist_ok=True)
             filepath = os.path.join(upload_dir, file.filename)
             contents = await file.read()
@@ -392,7 +404,7 @@ async def init_sim(file: UploadFile = File(None), scene_name: str = Form(None)):
             scene_to_use = filepath
             logger.info(f"Using uploaded scene: {scene_to_use}")
         elif scene_name:
-            scene_to_use = os.path.join("test habitats", scene_name)
+            scene_to_use = os.path.join("/home/aavan/Desktop/Project Files/My Python Project/Project/test habitats", scene_name)
             if not os.path.exists(scene_to_use):
                 return {"status": "error", "message": f"Scene {scene_name} not found"}
             logger.info(f"Using selected scene: {scene_to_use}")
@@ -400,24 +412,144 @@ async def init_sim(file: UploadFile = File(None), scene_name: str = Form(None)):
             scene_to_use = SCENE_PATH
             logger.info(f"Using default scene: {scene_to_use}")
 
-        habitat_controller = HabitatController(scene_to_use)
+        # Check if this is an HSSD scene (by filename pattern or known list)
+        # HSSD files usually look like "102343992.glb" or "108736611_177263226.glb"
+        # We need the handle (filename without extension) and the dataset config
+        hssd_config_path = "/home/aavan/Desktop/Project Files/AIHabitat Project/Hssd Habitat Dataset/hssd/hssd-hab.scene_dataset_config.json"
+        
+        sim_settings = {}
+        if "hssd" in scene_to_use or os.path.exists(hssd_config_path):
+             # Try to match filename to an HSSD ID
+             basename = os.path.basename(scene_to_use)
+             scene_handle = os.path.splitext(basename)[0]
+             
+             # Heuristic: If filename is numeric/ID-like, treat as HSSD
+             # This allows us to load the full scene with objects
+             if len(scene_handle) > 5 and scene_handle[0].isdigit():
+                 logger.info(f"Detected potential HSSD scene: {scene_handle}. Using Dataset Config.")
+                 sim_settings["dataset_config"] = hssd_config_path
+                 scene_to_use = scene_handle # Pass ID instead of path
+
+        with habitat_lock:
+            habitat_controller = HabitatController(scene_to_use, **sim_settings)
         return {"status": "success", "message": f"Simulator initialized with {os.path.basename(scene_to_use)}"}
     except Exception as e:
         logger.error(f"Failed to init simulator: {e}")
         return {"status": "error", "message": str(e)}
 
+@app.post("/get_view")
+async def get_view():
+    global habitat_controller
+    
+    with habitat_lock:
+        if habitat_controller is None:
+            return {"status": "error", "message": "Simulator not initialized"}
+        
+        try:
+            frame_base64 = habitat_controller.get_frame_as_base64()
+            return {"status": "success", "frame": frame_base64}
+        except Exception as e:
+            logger.error(f"View error: {e}")
+            return {"status": "error", "message": str(e)}
+
 @app.post("/move")
+
 async def move_agent(command: str = Form(...)):
     global habitat_controller
-    if habitat_controller is None:
-        return {"status": "error", "message": "Simulator not initialized"}
-    
-    try:
-        frame_base64 = habitat_controller.move_agent(command)
-        return {"status": "success", "frame": frame_base64}
-    except Exception as e:
-        logger.error(f"Movement error: {e}")
-        return {"status": "error", "message": str(e)}
+
+    with habitat_lock:
+        if habitat_controller is None:
+            return {"status": "error", "message": "Simulator not initialized"}
+        
+        try:
+            frame_base64 = habitat_controller.move_agent(command)
+            return {"status": "success", "frame": frame_base64}
+        except Exception as e:
+            logger.error(f"Movement error: {e}")
+            return {"status": "error", "message": str(e)}
+
+@app.post("/get_map")
+async def get_map():
+    global habitat_controller
+    with habitat_lock:
+        if habitat_controller is None:
+            return {"status": "error", "message": "Simulator not initialized"}
+        
+        try:
+            map_base64, map_info = habitat_controller.get_topdown_map_base64()
+            if map_base64:
+                return {"status": "success", "map": map_base64, "info": map_info}
+            else:
+                return {"status": "error", "message": map_info} # map_info contains error string
+        except Exception as e:
+            logger.error(f"Map generation error: {e}")
+            return {"status": "error", "message": str(e)}
+
+@app.post("/set_pose")
+async def set_pose(
+    norm_x: float = Form(...), 
+    norm_y: float = Form(...),
+    map_width: int = Form(...),
+    map_height: int = Form(...)
+):
+    global habitat_controller
+    with habitat_lock:
+        if habitat_controller is None:
+            return {"status": "error", "message": "Simulator not initialized"}
+        
+        try:
+            # We need to reconstruct map_info partially
+            # Set Pose needs dimensions to scale
+            partial_info = {"width": map_width, "height": map_height}
+            
+            success, result = habitat_controller.set_agent_start_pose(norm_x, norm_y, partial_info)
+            if success:
+                 return {"status": "success", "frame": result}
+            else:
+                 return {"status": "error", "message": result}
+        except Exception as e:
+            logger.error(f"Set pose error: {e}")
+            return {"status": "error", "message": str(e)}
+
+@app.post("/interact")
+async def interact_agent():
+    global habitat_controller
+
+    with habitat_lock:
+        if habitat_controller is None:
+            return {"status": "error", "message": "Simulator not initialized"}
+        
+        try:
+            # Call interact on the controller
+            frame_base64 = habitat_controller.move_agent("interact")
+            return {"status": "success", "frame": frame_base64, "message": "Interaction triggered"}
+        except Exception as e:
+            logger.error(f"Interaction error: {e}")
+            return {"status": "error", "message": str(e)}
+
+@app.post("/reset_camera")
+async def reset_camera():
+    global habitat_controller
+    with habitat_lock:
+        if habitat_controller is None:
+            return {"status": "error", "message": "Simulator not initialized"}
+        try:
+            frame_base64 = habitat_controller.reset_camera()
+            return {"status": "success", "frame": frame_base64}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
+
+@app.post("/snap_to_floor")
+async def snap_to_floor():
+    global habitat_controller
+    with habitat_lock:
+        if habitat_controller is None:
+            return {"status": "error", "message": "Simulator not initialized"}
+        try:
+            frame_base64 = habitat_controller.snap_to_floor()
+            return {"status": "success", "frame": frame_base64}
+        except Exception as e:
+            return {"status": "error", "message": str(e)}
 
 @app.post("/generate_video")
 async def generate_video(

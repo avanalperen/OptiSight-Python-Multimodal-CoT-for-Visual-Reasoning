@@ -294,8 +294,8 @@
 
         video,
         img#captured-photo {
-            max-width: 100%;
-            max-height: 100%;
+            width: 100%;
+            height: 100%;
             object-fit: contain;
         }
 
@@ -554,9 +554,9 @@
 
                 <div id="habitat-selection-overlay" class="habitat-overlay">
                     <h2 style="color: white; margin-bottom: 20px;">Select Habitat Mode</h2>
-                    <button class="habitat-btn" onclick="selectHabitatMode('record')">Record Route Video</button>
+                    <button class="habitat-btn disabled" disabled>Record Route Video (Soon)</button>
                     <button class="habitat-btn" onclick="selectHabitatMode('live')">Live Control</button>
-                    <button class="habitat-btn disabled" disabled>Autonomous VLM (Coming Soon)</button>
+                    <button class="habitat-btn disabled" disabled>Autonomous VLM (Soon)</button>
                     <button id="cancel-habitat-overlay"
                         style="margin-top:20px; background:transparent; border:none; color:#aaa; cursor:pointer;"
                         onclick="document.getElementById('habitat-selection-overlay').style.display='none'">Cancel</button>
@@ -570,6 +570,22 @@
                     </div>
                     <button style="margin-top:20px; background:transparent; border:none; color:#aaa; cursor:pointer;"
                         onclick="document.getElementById('scene-selection-overlay').style.display='none'">Cancel</button>
+                </div>
+
+                <div id="map-selection-overlay" class="habitat-overlay">
+                    <h2 style="color: white; margin-bottom: 20px;">Select Starting Position</h2>
+                    <div style="position: relative; border: 2px solid #555;">
+                        <img id="topdown-map-img" style="max-width: 600px; max-height: 400px; cursor: crosshair;"
+                            onclick="handleMapClick(event)">
+                        <!-- Marker for click confirmation -->
+                        <div id="spawn-marker"
+                            style="position: absolute; width: 10px; height: 10px; background: red; border-radius: 50%; display: none; transform: translate(-50%, -50%); pointer-events: none;">
+                        </div>
+                    </div>
+                    <p style="color: #aaa; margin-top: 10px;">Click on a white area to spawn there.</p>
+                    <button id="cancel-map-overlay"
+                        style="margin-top:20px; background:transparent; border:none; color:#aaa; cursor:pointer;"
+                        onclick="closeMapOverlay()">Cancel (Use Default)</button>
                 </div>
 
                 <div id="placeholder-text" style="color: #666;">Select a Source</div>
@@ -896,15 +912,147 @@
                 if (data.status === 'success') {
                     document.getElementById('sim-info').textContent = sceneName;
                     document.getElementById('sim-info').style.display = 'block';
+                    currentSourceName = sceneName;
+                    updateActionButton();
                     alert("Scene loaded: " + sceneName);
-                    // Show habitat mode overlay after scene load
-                    document.getElementById('habitat-selection-overlay').style.display = 'flex';
+
+                    if (habitatSubMode === 'live') {
+                        // fetchInitialView();
+                        showMapSelection();
+                    } else {
+                        // Show habitat mode overlay after scene load if not already in a mode
+                        document.getElementById('habitat-selection-overlay').style.display = 'flex';
+                    }
                 } else {
                     alert("Error loading scene: " + data.message);
                 }
             } catch (e) {
                 alert("Error: " + e);
             }
+        }
+        // Map Selection Logic
+        let currentMapInfo = null;
+
+        async function showMapSelection() {
+            // Fetch map from backend
+            try {
+                const res = await fetch('/get_map', { method: 'POST' });
+                const data = await res.json();
+
+                if (data.status === 'success') {
+                    const img = document.getElementById('topdown-map-img');
+                    img.src = 'data:image/jpeg;base64,' + data.map;
+                    currentMapInfo = data.info;
+
+                    document.getElementById('map-selection-overlay').style.display = 'flex';
+                    // Hide other overlays
+                    document.getElementById('habitat-selection-overlay').style.display = 'none';
+                    document.getElementById('scene-selection-overlay').style.display = 'none';
+                } else {
+                    console.error("Failed to get map:", data.message);
+                    alert("Could not generate map for this scene. Starting at default position.");
+                    // Fallback to start
+                    if (habitatSubMode === 'live') {
+                        // Start Live Control immediately
+                        // ... Code to start live control view ...
+                        startLiveControlView();
+                    }
+                }
+            } catch (e) {
+                console.error("Network error getting map:", e);
+                // Fallback
+                if (habitatSubMode === 'live') {
+                    startLiveControlView();
+                }
+            }
+        }
+
+        function closeMapOverlay() {
+            document.getElementById('map-selection-overlay').style.display = 'none';
+            if (habitatSubMode === 'live') {
+                startLiveControlView();
+            }
+        }
+
+        async function handleMapClick(event) {
+            event.stopPropagation();
+            if (!currentMapInfo) return;
+
+            const img = document.getElementById('topdown-map-img');
+            const rect = img.getBoundingClientRect();
+
+            // Calculate normalized coordinates
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+
+            const normX = x / rect.width;
+            const normY = y / rect.height;
+
+            console.log(`Map Click: ${x}, ${y} -> Norm: ${normX}, ${normY}`);
+
+            // Show marker
+            const marker = document.getElementById('spawn-marker');
+            marker.style.left = x + 'px';
+            marker.style.top = y + 'px';
+            marker.style.display = 'block';
+
+            // Send to backend
+            const formData = new FormData();
+            formData.append('norm_x', normX);
+            formData.append('norm_y', normY);
+            formData.append('map_width', currentMapInfo.width);
+            formData.append('map_height', currentMapInfo.height);
+
+            try {
+                const res = await fetch('/set_pose', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+
+                if (data.status === 'success') {
+                    console.log("Spawn set!");
+
+                    // Immediately update view with the frame from set_pose
+                    if (data.frame) {
+                        photoDisplay.src = "data:image/jpeg;base64," + data.frame;
+                        photoDisplay.style.display = 'block';
+                        video.style.display = 'none';
+                        placeholder.style.display = 'none';
+                    }
+
+                    // Wait a bit to show marker then close
+                    setTimeout(() => {
+                        closeMapOverlay();
+                    }, 200); // Faster close
+                } else {
+                    alert("Failed to spawn there: " + data.message);
+                }
+            } catch (e) {
+                console.error("Error setting pose:", e);
+            }
+        }
+
+        function startLiveControlView() {
+            // Re-enable controls
+            document.addEventListener('keydown', handleLiveControlKey);
+            video.style.display = 'none';
+            placeholder.style.display = 'none';
+            photoDisplay.style.display = 'block';
+
+            // Fetch initial view
+            // fetchInitialView();
+            // We removed fetchInitialView here because handleMapClick now sets the view.
+            // But if we closed overlay without setting pose (cancel), we might need it.
+            // Let's rely on handleMapClick for the spawn case.
+
+            // Setup Interaction
+            console.log("Live Control Started");
+            logDebug("Live Control Started. Simulator Controls:");
+            logDebug("- W/A/S/D: Move Forward/Left/Back/Right");
+            logDebug("- Q/Z: Look Up/Down");
+            logDebug("- Arrow Keys: Look Up/Down/Left/Right by 30°");
+            logDebug("- E: Interact | F: Snap to Floor | 0: Reset Camera");
         }
 
         let habitatSubMode = null;
@@ -939,12 +1087,19 @@
                 actionBtn.style.display = 'block';
                 actionBtn.onclick = handleAction; // Standard analysis loop
 
-                placeholder.textContent = "Browse a Sim, then use WASD + Mouse to control.";
+                placeholder.innerHTML = "Browse a Sim, then use Simulator Controls:<br>- W/A/S/D: Move | Q/Z: Look Up/Down | Arrows: Look 30°<br>- E: Interact | F: Snap to Floor | 0: Reset Camera";
 
                 // Enable inputs
                 window.addEventListener('keydown', handleLiveControlKey);
                 // Mouse control would likely require pointer lock or similar, simple version for now
                 // window.addEventListener('mousemove', handleLiveControlMouse);
+
+                // Fetch initial view -> CHANGED to Map Selection
+                if (currentSourceName) {
+                    showMapSelection();
+                } else {
+                    // Waiting for user to browse sim
+                }
             }
 
             updateActionButton(); // Re-evaluate button state based on loaded file
@@ -1039,16 +1194,89 @@
         });
 
         function handleLiveControlKey(e) {
-            if (habitatSubMode !== 'live') return;
-            const key = e.key.toLowerCase();
-            let action = '';
-            if (key === 'w') action = 'move_forward';
-            if (key === 's') action = 'move_backward'; // Need to impl
-            if (key === 'a') action = 'turn_left';
-            if (key === 'd') action = 'turn_right';
+            if (currentMode === 'habitat' && !isStreaming) {
+                // Determine action
+                let action = '';
+                const key = e.key; // Use case-sensitive but check lower for standard keys
+                const keyLower = key.toLowerCase();
 
-            if (action) {
-                sendMoveCommand(action);
+                if (keyLower === 'w') action = 'move_forward';
+                else if (keyLower === 's') action = 'move_backward';
+                else if (keyLower === 'a') action = 'turn_left';
+                else if (keyLower === 'd') action = 'turn_right';
+                else if (keyLower === 'q') action = 'look_up';
+                else if (keyLower === 'z') action = 'look_down';
+                else if (key === 'ArrowUp') action = 'look_up_30';
+                else if (key === 'ArrowDown') action = 'look_down_30';
+                else if (key === 'ArrowLeft') action = 'turn_left_30';
+                else if (key === 'ArrowRight') action = 'turn_right_30';
+                else if (keyLower === 'e') {
+                    console.log("Interact triggered");
+                    triggerInteract();
+                    return;
+                }
+                else if (key === '0') {
+                    console.log("Reset Camera triggered");
+                    resetCamera();
+                    return;
+                }
+                else if (keyLower === 'f') {
+                    console.log("Snap to Floor triggered");
+                    snapToFloor();
+                    return;
+                }
+
+                if (action) {
+                    sendMoveCommand(action);
+                }
+            }
+        }
+
+        async function resetCamera() {
+            try {
+                const res = await fetch('/reset_camera', { method: 'POST' });
+                const data = await res.json();
+                if (data.status === 'success' && data.frame) {
+                    photoDisplay.src = "data:image/jpeg;base64," + data.frame;
+                }
+            } catch (e) { console.error("Reset Camera error:", e); }
+        }
+
+        async function snapToFloor() {
+            try {
+                const res = await fetch('/snap_to_floor', { method: 'POST' });
+                const data = await res.json();
+                if (data.status === 'success' && data.frame) {
+                    photoDisplay.src = "data:image/jpeg;base64," + data.frame;
+                }
+            } catch (e) { console.error("Snap to Floor error:", e); }
+        }
+
+        async function triggerInteract() {
+            try {
+                const formData = new FormData();
+                // No specific body needed for now
+
+                const res = await fetch('/interact', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+
+                if (data.status === 'success') {
+                    // Update view if frame returned
+                    if (data.frame) {
+                        const img = document.getElementById('captured-photo');
+                        img.src = 'data:image/jpeg;base64,' + data.frame;
+                        img.style.display = 'block';
+                        video.style.display = 'none';
+                    }
+                    console.log("Interaction success:", data.message);
+                } else {
+                    console.error("Interaction failed:", data.message);
+                }
+            } catch (e) {
+                console.error("Interaction network error:", e);
             }
         }
 
@@ -1069,6 +1297,21 @@
                     video.style.display = 'none';
                 }
             } catch (e) { console.error(e); }
+        }
+
+        async function fetchInitialView() {
+            try {
+                const res = await fetch('/get_view', { method: 'POST' });
+                const data = await res.json();
+                if (data.status === 'success' && data.frame) {
+                    photoDisplay.src = "data:image/jpeg;base64," + data.frame;
+                    photoDisplay.style.display = 'block';
+                    placeholder.style.display = 'none';
+                    video.style.display = 'none';
+                    // Ensure the action button is updated now that we have content
+                    updateActionButton();
+                }
+            } catch (e) { console.error("Failed to fetch initial view:", e); }
         }
 
         function handleFileSelect(input, type) {
@@ -1127,6 +1370,10 @@
                 const data = await res.json();
                 if (data.status === 'success') {
                     logDebug(`Simulator initialized successfully.`);
+                    if (habitatSubMode === 'live') {
+                        // fetchInitialView();
+                        showMapSelection();
+                    }
                 } else {
                     logDebug(`<span style="color:#f44747">Init Failed: ${data.message}</span>`);
                 }
@@ -1197,9 +1444,34 @@
         function handleAction() {
             if (currentMode === 'photo') {
                 analyzePhoto();
+            } else if (currentMode === 'habitat' && habitatSubMode === 'live') {
+                analyzeSimSnapshot();
             } else {
                 toggleStream();
             }
+        }
+
+        async function analyzeSimSnapshot() {
+            if (currentMode !== 'habitat') return;
+
+            // PhotoDisplay holds the current base64 frame from simulator
+            const base64Data = photoDisplay.src.split(',')[1];
+            if (!base64Data) {
+                logDebug(`<span style="color:#f44747">Error: No frame to analyze.</span>`);
+                return;
+            }
+
+            // Convert base64 to Blob
+            const byteCharacters = atob(base64Data);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: 'image/jpeg' });
+
+            logDebug("Capturing simulator snapshot for analysis...");
+            await sendFileToBackend(blob);
         }
 
 
@@ -1280,6 +1552,7 @@
         let lastDebugLog = '';
 
         function clearResult() {
+            if (!confirm("Are you sure you want to clear the results?")) return;
             resultDisplay.innerHTML = 'Waiting for input...';
             lastResult = null;
             lastPrompt = null;
@@ -1294,11 +1567,7 @@
 
             // Clear button
             const clearBtn = document.getElementById('btn-clear-result');
-            if (resultEmpty) {
-                clearBtn.classList.add('btn-dimmed');
-            } else {
-                clearBtn.classList.remove('btn-dimmed');
-            }
+            clearBtn.classList.remove('btn-dimmed');
 
             // Save Result button
             const saveResultBtn = document.getElementById('btn-save-result');
