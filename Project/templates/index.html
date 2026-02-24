@@ -583,6 +583,9 @@
                         </div>
                     </div>
                     <p style="color: #aaa; margin-top: 10px;">Click on a white area to spawn there.</p>
+                    <button id="spawn-starter-btn"
+                        style="margin-top:10px; padding:10px 20px; font-weight:bold; cursor:pointer; background-color:#333; color:white; border:2px solid #555; border-radius:5px;"
+                        onclick="spawnStarter()">Spawn from Starter Point</button>
                     <button id="cancel-map-overlay"
                         style="margin-top:20px; background:transparent; border:none; color:#aaa; cursor:pointer;"
                         onclick="closeMapOverlay()">Cancel (Use Default)</button>
@@ -1033,6 +1036,25 @@
             }
         }
 
+        async function spawnStarter() {
+            try {
+                const res = await fetch('/spawn_starter', { method: 'POST' });
+                const data = await res.json();
+                if (data.status === 'success' && data.frame) {
+                    photoDisplay.src = "data:image/jpeg;base64," + data.frame;
+                    photoDisplay.style.display = 'block';
+                    video.style.display = 'none';
+                    placeholder.style.display = 'none';
+                    closeMapOverlay();
+                } else {
+                    alert('Error spawning at starter point: ' + data.message);
+                }
+            } catch (e) {
+                console.error("Spawn starter error:", e);
+                alert("Error: " + e);
+            }
+        }
+
         function startLiveControlView() {
             // Re-enable controls
             document.addEventListener('keydown', handleLiveControlKey);
@@ -1053,6 +1075,7 @@
             logDebug("- Q/Z: Look Up/Down");
             logDebug("- Arrow Keys: Look Up/Down/Left/Right by 30°");
             logDebug("- E: Interact | F: Snap to Floor | 0: Reset Camera");
+            logDebug("- ESC: Exit Live Control & Return to Menu");
         }
 
         let habitatSubMode = null;
@@ -1087,7 +1110,7 @@
                 actionBtn.style.display = 'block';
                 actionBtn.onclick = handleAction; // Standard analysis loop
 
-                placeholder.innerHTML = "Browse a Sim, then use Simulator Controls:<br>- W/A/S/D: Move | Q/Z: Look Up/Down | Arrows: Look 30°<br>- E: Interact | F: Snap to Floor | 0: Reset Camera";
+                placeholder.innerHTML = "Browse a Sim, then use Simulator Controls:<br>- W/A/S/D: Move | Q/Z: Look Up/Down | Arrows: Look 30°<br>- E: Interact | F: Snap to Floor | 0: Reset Camera<br>- ESC: Exit Habitat Live Control";
 
                 // Enable inputs
                 window.addEventListener('keydown', handleLiveControlKey);
@@ -1225,11 +1248,30 @@
                     snapToFloor();
                     return;
                 }
+                else if (key === 'Escape') {
+                    console.log("Exiting Live Control");
+                    exitLiveControl();
+                    return;
+                }
 
                 if (action) {
                     sendMoveCommand(action);
                 }
             }
+        }
+
+        function exitLiveControl() {
+            // Remove listener
+            document.removeEventListener('keydown', handleLiveControlKey);
+
+            // Return to Habitat Selection UI
+            document.getElementById('habitat-selection-overlay').style.display = 'flex';
+            photoDisplay.style.display = 'none';
+            placeholder.style.display = 'block';
+
+            // Clear current sub mode state
+            habitatSubMode = null;
+            updateActionButton();
         }
 
         async function resetCamera() {
@@ -1471,7 +1513,12 @@
             const blob = new Blob([byteArray], { type: 'image/jpeg' });
 
             logDebug("Capturing simulator snapshot for analysis...");
-            await sendFileToBackend(blob);
+
+            // Send to backend asynchronously without awaiting so UI doesn't freeze
+            sendFileToBackend(blob).catch(e => {
+                console.error("Async analysis error:", e);
+                logDebug(`<span style="color:#f44747">Async Error: ${e}</span>`);
+            });
         }
 
 

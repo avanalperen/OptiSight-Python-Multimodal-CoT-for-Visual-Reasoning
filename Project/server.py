@@ -551,6 +551,21 @@ async def snap_to_floor():
         except Exception as e:
             return {"status": "error", "message": str(e)}
 
+@app.post("/spawn_starter")
+async def spawn_starter():
+    global habitat_controller
+    with habitat_lock:
+        if habitat_controller is None:
+             return {"status": "error", "message": "Simulator not initialized"}
+        try:
+             success, frame = habitat_controller.spawn_starter()
+             if success:
+                 return {"status": "success", "frame": frame}
+             else:
+                 return {"status": "error", "message": "Failed to spawn"}
+        except Exception as e:
+             return {"status": "error", "message": str(e)}
+
 @app.post("/generate_video")
 async def generate_video(
     points: str = Form(None), # JSON string of points list

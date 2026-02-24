@@ -90,6 +90,15 @@ class HabitatController:
         
         # Initial Agent State
         self.reset_agent()
+        self.starter_position = self.agent.get_state().position
+
+    def spawn_starter(self):
+        """Spawns the agent at the deterministic starter point."""
+        agent_state = self.agent.get_state()
+        agent_state.position = self.starter_position
+        agent_state.rotation = np.array([0, 0, 0, 1.0])
+        self.agent.set_state(agent_state)
+        return True, self.get_frame_as_base64()
 
     def reset_camera(self):
         """Resets the agent's rotation to default forward view."""
@@ -223,11 +232,10 @@ class HabitatController:
                 meters_per_pixel=meters_per_pixel
             )
             
-            # Reproject to image (0=obstacle, 1=navigable?)
-            # Usually: 0 -> obstacle, 1 -> free
-            # Let's map 1 to White, 0 to Black
+            # Map colors based on Habitat values: 1 is navigable, 0 is invalid/obstacle, 2+ is border 
             color_map = np.zeros((topdown_map.shape[0], topdown_map.shape[1], 3), dtype=np.uint8)
-            color_map[topdown_map > 0] = [255, 255, 255] # Walkable areas white
+            color_map[topdown_map == 1] = [255, 255, 255] # Walkable areas white
+            color_map[topdown_map == 2] = [100, 100, 100] # Borders gray
             
             # Draw current agent position
             agent_pos = self.agent.get_state().position
@@ -284,13 +292,13 @@ class HabitatController:
             # Snap to nearest navigable point
             snapped_pos = self.sim.pathfinder.snap_point(target_pos)
             
-            if np.isnan(snapped_pos).any():
+            if np.any(np.isnan(snapped_pos)):
                 # Fallback to current agent height if floor snap fails
                 current_y = self.agent.get_state().position[1]
                 target_pos[1] = current_y
                 snapped_pos = self.sim.pathfinder.snap_point(target_pos)
 
-            if np.isnan(snapped_pos).any():
+            if np.any(np.isnan(snapped_pos)):
                 return False, "Point is not navigable."
                 
             agent_state = self.agent.get_state()
