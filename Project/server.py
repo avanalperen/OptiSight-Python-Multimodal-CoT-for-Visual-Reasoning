@@ -187,13 +187,18 @@ async def save_result(
         logger.error(f"Error saving result: {e}")
         return {"status": "error", "message": str(e)}
 
-def load_model_on_demand(device_choice="cpu"):
+def load_model_on_demand(device_choice="cpu", model_choice="qwen2-2b"):
     global model, processor
     
-    # If already loaded on the correct device, skip
+    # If already loaded on the correct device and correct model, skip
     if model is not None:
         current_device = "cuda" if model.device.type == "cuda" else "cpu"
-        if current_device == device_choice:
+        # We need a way to track which model is loaded if we want to skip.
+        # For simplicity, if we are switching models, we should reload.
+        # Adding a simple check based on model type or config might be needed, 
+        # but for now, let's track the loaded model type globally.
+        current_device = "cuda" if model.device.type == "cuda" else "cpu"
+        if getattr(model, "loaded_model_choice", None) == model_choice and current_device == device_choice:
             return 0
     
     # Cleanup previous model if exists
@@ -208,39 +213,69 @@ def load_model_on_demand(device_choice="cpu"):
         del processor
         processor = None
         
-    gc.collect()
-    gc.collect() # Multiple passes
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
-        torch.cuda.ipc_collect()
-        torch.cuda.synchronize()
+    for _ in range(3):
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.ipc_collect()
+            torch.cuda.synchronize()
 
     start_load = time.time()
-    logger.info(f"Loading model on {device_choice}...")
+    logger.info(f"Loading {model_choice} on {device_choice}...")
+    
+    # Determine Model Path
+    target_model_path = config.QWEN_PATH if model_choice == "qwen2-2b" else config.DEEPSEEK_PATH
     
     try:
-        if device_choice == "cuda":
-            model = Qwen2VLForConditionalGeneration.from_pretrained(
-                MODEL_PATH,
-                torch_dtype=torch.float16,
-                device_map="auto",
-                attn_implementation="sdpa"
+        from transformers import AutoProcessor, AutoModelForCausalLM
+        if model_choice == "qwen2-2b":
+            if device_choice == "cuda":
+                model = Qwen2VLForConditionalGeneration.from_pretrained(
+                    target_model_path,
+                    torch_dtype=torch.float16,
+                    device_map="auto",
+                    attn_implementation="sdpa"
+                )
+            else:
+                model = Qwen2VLForConditionalGeneration.from_pretrained(
+                    target_model_path,
+                    torch_dtype=torch.float32,
+                    device_map="cpu",
+                    low_cpu_mem_usage=True
+                )
+            processor = AutoProcessor.from_pretrained(
+                target_model_path, 
+                min_pixels=16*28*28, 
+                max_pixels=128*28*28
             )
-        else:
-            model = Qwen2VLForConditionalGeneration.from_pretrained(
-                MODEL_PATH,
-                torch_dtype=torch.float32,
-                device_map="cpu",
-                low_cpu_mem_usage=True
+        elif model_choice == "deepseek-1.3b":
+            # DeepSeek specific loading using their library classes
+            from deepseek_vl.models import MultiModalityCausalLM, VLChatProcessor
+            
+            if device_choice == "cuda":
+                MultiModalityCausalLM._supports_sdpa = True
+            
+            device_map_choice = "auto" if device_choice == "cuda" else "cpu"
+            torch_dtype_choice = torch.bfloat16 if device_choice == "cuda" else torch.float32
+
+            load_kwargs = {
+                "trust_remote_code": True,
+                "torch_dtype": torch_dtype_choice,
+                "device_map": device_map_choice
+            }
+            if device_choice == "cuda":
+                load_kwargs["attn_implementation"] = "sdpa"
+
+            model = MultiModalityCausalLM.from_pretrained(
+                target_model_path,
+                **load_kwargs
             )
+            processor = VLChatProcessor.from_pretrained(target_model_path)
+            
+        model.loaded_model_choice = model_choice  # Track the loaded model
         
-        processor = AutoProcessor.from_pretrained(
-            MODEL_PATH, 
-            min_pixels=16*28*28, 
-            max_pixels=128*28*28
-        )
         load_time = time.time() - start_load
-        logger.info(f"Model loaded on {device_choice} in {load_time:.2f}s")
+        logger.info(f"{model_choice} loaded on {device_choice} in {load_time:.2f}s")
         return load_time
     except Exception as e:
         logger.error(f"Failed to load model: {e}")
@@ -249,10 +284,10 @@ def load_model_on_demand(device_choice="cpu"):
         raise e
 
 @app.post("/load_model")
-async def load_model_endpoint(device_choice: str = Form("cuda")):
+async def load_model_endpoint(device_choice: str = Form("cuda"), model_choice: str = Form("qwen2-2b")):
     try:
-        load_time = load_model_on_demand(device_choice)
-        return {"status": "success", "message": f"Model loaded on {device_choice} in {load_time:.2f}s"}
+        load_time = load_model_on_demand(device_choice, model_choice)
+        return {"status": "success", "message": f"{model_choice} loaded on {device_choice} in {load_time:.2f}s"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -270,24 +305,27 @@ async def unload_model_endpoint():
         del processor
         processor = None
         
-    # Force Python GC first
-    gc.collect()
-    gc.collect()
+    # Force Python GC and CUDA cleanups multiple times
+    import gc
+    for _ in range(3):
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            torch.cuda.ipc_collect()
     
-    # Then force PyTorch CUDA Memory allocator release
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
-        torch.cuda.ipc_collect()
-        torch.cuda.synchronize()
-        
+    # Wait briefly for NVIDIA drivers to update their memory reporting
+    import time
+    time.sleep(1.0)
+            
     logger.info("Model unloaded from memory. Cleanup complete.")
-    return {"status": "success", "message": "Model unloaded from memory"}
+    return {"status": "success", "message": "Model unloaded from memory."}
 
 @app.post("/analyze")
 async def analyze(
     file: UploadFile = File(...),
     prompt: str = Form(...),
-    device_choice: str = Form("cpu")
+    device_choice: str = Form("cpu"),
+    model_choice: str = Form("qwen2-2b")
 ):
     global model, processor
     
@@ -297,55 +335,134 @@ async def analyze(
     
     try:
         # On-demand loading
-        load_time = load_model_on_demand(device_choice)
+        load_time = load_model_on_demand(device_choice, model_choice)
         
         ram_start = get_ram_usage()
         gpu_start = get_gpu_info()
         logger.info(f"--- Analysis Started ---")
-        logger.info(f"Device Choice: {device_choice} (Load Time: {load_time:.2f}s)")
+        logger.info(f"Model Choice: {model_choice} | Device: {device_choice} (Load Time: {load_time:.2f}s)")
         logger.info(f"Prompt: {prompt}")
         
         contents = await file.read()
-        image = Image.open(io.BytesIO(contents))
+        image = Image.open(io.BytesIO(contents)).convert("RGB")
         
-        # Prepare conversation
-        messages = [
-            {
-                "role": "user",
-                "content": [
-                    {"type": "image", "image": image},
-                    {"type": "text", "text": prompt},
-                ],
-            }
-        ]
+        # Aggressive Resize to improve performance (max 384px on longest side for Qwen, 224px for DeepSeek)
+        max_size = 384 if model_choice == "qwen2-2b" else 384
+        if max(image.size) > max_size:
+            ratio = max_size / max(image.size)
+            new_size = (int(image.size[0] * ratio), int(image.size[1] * ratio))
+            image = image.resize(new_size, Image.Resampling.LANCZOS)
         
-        # Preprocess
-        text = processor.apply_chat_template(
-            messages, tokenize=False, add_generation_prompt=True
-        )
-        
-        image_inputs, video_inputs = process_vision_info(messages)
-        inputs = processor(
-                text=[text],
-                images=image_inputs,
-                videos=video_inputs,
-                padding=True,
-                return_tensors="pt",
-            ).to(model.device)
-
-        # Inference with no_grad for memory efficiency
         inference_start = time.time()
-        with torch.no_grad():
-            generated_ids = model.generate(**inputs, max_new_tokens=200, do_sample=False)
-        inference_end = time.time()
+
+        if model_choice == "qwen2-2b":
+            # Qwen Preprocessing
+            messages = [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "image", "image": image},
+                        {"type": "text", "text": prompt},
+                    ],
+                }
+            ]
+            text = processor.apply_chat_template(
+                messages, tokenize=False, add_generation_prompt=True
+            )
+            image_inputs, video_inputs = process_vision_info(messages)
+            inputs = processor(
+                    text=[text],
+                    images=image_inputs,
+                    videos=video_inputs,
+                    padding=True,
+                    return_tensors="pt",
+                ).to(model.device)
+
+            with torch.no_grad():
+                generated_ids = model.generate(**inputs, max_new_tokens=200, do_sample=False)
+                
+            generated_ids_trimmed = [
+                out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
+            ]
+            output_text = processor.batch_decode(
+                generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
+            )
+            final_response = output_text[0]
+            del inputs, generated_ids, generated_ids_trimmed
+
+        elif model_choice == "deepseek-1.3b":
+
+            # DeepSeek-VL Preprocessing
+            conversation = [
+                {
+                    "role": "User",
+                    "content": f"<image_placeholder> {prompt}",
+                    "images": [image]
+                },
+                {
+                    "role": "Assistant",
+                    "content": ""
+                }
+            ]
             
-        generated_ids_trimmed = [
-            out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
-        ]
-        output_text = processor.batch_decode(
-            generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
-        )
-        
+            from deepseek_vl.utils.io import load_pil_images
+            from deepseek_vl.models import MultiModalityCausalLM, VLChatProcessor
+            from transformers import StoppingCriteria, StoppingCriteriaList
+            
+            class StoppingCriteriaSub(StoppingCriteria):
+                def __init__(self, stops=[], encounters=1):
+                    super().__init__()
+                    self.stops = [stop.to(model.device) for stop in stops]
+            
+                def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs):
+                    for stop in self.stops:
+                        if input_ids.shape[-1] >= len(stop) and torch.all((stop == input_ids[0][-len(stop):])).item():
+                            return True
+                    return False
+            
+            stop_words = ["<｜end of sentence｜>", "User:", "\nUser", "Assistant:", "User"]
+            stop_words_ids = [torch.tensor(processor.tokenizer.encode(word, add_special_tokens=False)) for word in stop_words]
+            stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids)])
+            
+            # Use their processor directly to prep for generation
+            prepare_inputs = processor(
+                conversations=conversation,
+                images=[image],
+                force_batchify=True
+            ).to(model.device)
+            
+            # run image encoder to get the image embeddings
+            inputs_embeds = model.prepare_inputs_embeds(**prepare_inputs)
+            
+            with torch.no_grad():
+                outputs = model.language_model.generate(
+                    inputs_embeds=inputs_embeds,
+                    attention_mask=prepare_inputs.attention_mask,
+                    pad_token_id=processor.tokenizer.eos_token_id,
+                    bos_token_id=processor.tokenizer.bos_token_id,
+                    eos_token_id=processor.tokenizer.eos_token_id,
+                    max_new_tokens=200,
+                    do_sample=False,
+                    use_cache=True,
+                    stopping_criteria=stopping_criteria
+                )
+            
+            # DeepSeek-VL generated output only contains new tokens when inputs_embeds is used.
+            # We don't need to slice it using input_length.
+            final_response = processor.tokenizer.decode(outputs[0].cpu().tolist(), skip_special_tokens=True).strip()
+            
+            # Clean up hallucinated conversational loops if DeepSeek forgets to stop
+            if "User:" in final_response:
+                final_response = final_response.split("User:")[0].strip()
+            if "Assistant:" in final_response:
+                final_response = final_response.split("Assistant:")[0].strip()
+                
+            del prepare_inputs, inputs_embeds, outputs
+
+        else:
+            final_response = "Unsupported model selected."
+
+        inference_end = time.time()
         total_time = time.time() - start_time
         inference_time = inference_end - inference_start
         
@@ -354,21 +471,20 @@ async def analyze(
         logger.info(f"Analysis Complete. Total time: {total_time:.2f}s")
         logger.info(f"Resources [End] - RAM: {ram_end}%, GPU: {gpu_end['percent']}% ({gpu_end['usage']})")
         
-        # Cleanup small objects
-        del inputs, generated_ids, generated_ids_trimmed
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
         
         return {
-            "response": output_text[0],
+            "response": final_response,
             "debug": {
                 "total_time": f"{total_time:.2f}s",
                 "inference_time": f"{inference_time:.2f}s",
                 "load_time": f"{load_time:.2f}s",
                 "ram_usage": f"{ram_start}% -> {ram_end}%",
                 "gpu_usage": f"{gpu_start['percent']}% ({gpu_start['usage']}) -> {gpu_end['percent']}% ({gpu_end['usage']})",
-                "device": "GPU" if model.device.type == "cuda" else "CPU"
+                "device": "GPU" if model.device.type == "cuda" else "CPU",
+                "model_choice": model_choice
             }
         }
 
@@ -463,7 +579,11 @@ async def move_agent(command: str = Form(...)):
         
         try:
             frame_base64 = habitat_controller.move_agent(command)
-            return {"status": "success", "frame": frame_base64}
+            return {
+                "status": "success", 
+                "frame": frame_base64,
+                "collisions": habitat_controller.collision_count
+            }
         except Exception as e:
             logger.error(f"Movement error: {e}")
             return {"status": "error", "message": str(e)}

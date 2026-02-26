@@ -88,6 +88,8 @@ class HabitatController:
 
         self.agent = self.sim.initialize_agent(0)
         
+        self.collision_count = 0
+        
         # Initial Agent State
         self.reset_agent()
         self.starter_position = self.agent.get_state().position
@@ -119,6 +121,7 @@ class HabitatController:
         return self.get_frame_as_base64()
 
     def reset_agent(self):
+        self.collision_count = 0
         agent_state = habitat_sim.AgentState()
         try:
             # Try to find a navigable point
@@ -149,7 +152,18 @@ class HabitatController:
         ]
         
         if action in valid_actions:
+            prev_pos = self.agent.get_state().position
             self.agent.act(action)
+            curr_pos = self.agent.get_state().position
+            
+            collided = getattr(self.sim, 'previous_step_collided', False)
+            if action in ["move_forward", "move_backward"]:
+                dist = np.linalg.norm(curr_pos - prev_pos)
+                if dist < 0.05:  # Expected translates are 0.25, if blocked or sliding thinly
+                    collided = True
+            
+            if collided:
+                self.collision_count += 1
         elif action == "interact":
             # Simple interaction stub
             print("Interact action triggered")

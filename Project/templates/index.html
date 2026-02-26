@@ -551,6 +551,9 @@
                 <img id="captured-photo" style="display:none;" />
                 <canvas id="canvas" style="display:none;"></canvas> <!-- Original canvas for photo capture? -->
                 <canvas id="route-canvas"></canvas> <!-- New canvas for route drawing -->
+                <div id="collision-counter"
+                    style="display:none; position:absolute; bottom:10px; right:10px; background:rgba(0,0,0,0.7); color:white; padding:5px 10px; border-radius:5px; z-index:50; font-family:monospace; font-size:16px; border:1px solid #f44747;">
+                    Collisions: 0</div>
 
                 <div id="habitat-selection-overlay" class="habitat-overlay">
                     <h2 style="color: white; margin-bottom: 20px;">Select Habitat Mode</h2>
@@ -591,6 +594,14 @@
                         onclick="closeMapOverlay()">Cancel (Use Default)</button>
                 </div>
 
+                <div id="model-selection-overlay" class="habitat-overlay">
+                    <h2 style="color: white; margin-bottom: 20px;">Select Vision Model</h2>
+                    <button class="habitat-btn" onclick="selectModel('qwen2-2b')">Qwen 2B</button>
+                    <button class="habitat-btn" onclick="selectModel('deepseek-1.3b')">DeepSeek 1.3B</button>
+                    <button style="margin-top:20px; background:transparent; border:none; color:#aaa; cursor:pointer;"
+                        onclick="document.getElementById('model-selection-overlay').style.display='none'">Cancel</button>
+                </div>
+
                 <div id="placeholder-text" style="color: #666;">Select a Source</div>
             </div>
 
@@ -617,7 +628,7 @@
                             <button id="device-gpu" class="active" onclick="setDevice('cuda')">GPU</button>
                         </div>
                         <button id="load-model-btn" onclick="toggleLoadModel()"
-                            style="padding: 6px 10px; font-size: 11px; background: #444; color: #ccc; border: 1px solid #666; cursor: pointer; border-radius: 4px; font-weight: bold; width: 120px;">Load
+                            style="padding: 6px 10px; font-size: 11px; background: #444; color: #ccc; border: 1px solid #666; cursor: pointer; border-radius: 4px; font-weight: bold; width: 120px;">Choose
                             Model</button>
                     </div>
 
@@ -702,6 +713,7 @@
         let isStreaming = false;
         let selectedDevice = 'cuda';
         let isModelLoaded = false;
+        let selectedModel = null; // Store chosen model
 
         let currentAnalysisController = null; // Controller for cancelling pending requests
 
@@ -726,23 +738,31 @@
 
         function resetLoadButton() {
             const btn = document.getElementById('load-model-btn');
-            btn.textContent = "Load Model";
+            btn.textContent = "Choose Model";
             btn.style.background = "#444";
             btn.style.color = "#ccc";
             btn.disabled = false;
             isModelLoaded = false;
+            selectedModel = null;
         }
 
         async function toggleLoadModel() {
             const btn = document.getElementById('load-model-btn');
 
             if (!isModelLoaded) {
+                if (!selectedModel) {
+                    // First time: Show model selection modal
+                    document.getElementById('model-selection-overlay').style.display = 'flex';
+                    return;
+                }
+
                 // LOAD Path
                 btn.disabled = true;
                 btn.textContent = "Loading...";
 
                 const formData = new FormData();
                 formData.append('device_choice', selectedDevice);
+                formData.append('model_choice', selectedModel);
 
                 try {
                     const res = await fetch('/load_model', {
@@ -756,6 +776,14 @@
                         btn.style.color = "white";
                         btn.disabled = false;
                         isModelLoaded = true;
+
+                        // Debug selected model and loading time to Analysis Result screen
+                        if (typeof logDebug === 'function') {
+                            logDebug(`Model Loaded: ${data.message}`);
+                        }
+
+                        // Wait a moment then fetch stats so GPU memory updates correctly
+                        setTimeout(updateStats, 1500);
                     } else {
                         btn.textContent = "Retry Load";
                         btn.disabled = false;
@@ -773,11 +801,25 @@
                     const res = await fetch('/unload_model', { method: 'POST' });
                     const data = await res.json();
                     resetLoadButton();
+
+                    if (typeof logDebug === 'function') {
+                        logDebug(data.message || "Model unloaded.");
+                    }
+
+                    // Run updateStats after a short delay since unloading takes a moment on CUDA
+                    setTimeout(updateStats, 1500);
                 } catch (e) {
                     btn.textContent = "Error Unload";
                     btn.disabled = false;
                 }
             }
+        }
+
+        function selectModel(modelName) {
+            selectedModel = modelName;
+            document.getElementById('model-selection-overlay').style.display = 'none';
+            // Trigger the actual load
+            toggleLoadModel();
         }
 
         function cancelCurrentAnalysis() {
@@ -837,6 +879,14 @@
                 // Or maybe just let them browse/upload first. 
                 // The user request says "reset to initial state", so we show overlay.
                 document.getElementById('habitat-selection-overlay').style.display = 'flex';
+
+                // Clear the collision counter
+                const cc = document.getElementById('collision-counter');
+                if (cc) {
+                    cc.textContent = "Collisions: 0";
+                    cc.dataset.count = "0";
+                    cc.style.display = 'none'; // Ensure hidden until Live Control begins
+                }
             }
 
             // FPS (Interval) visibility
@@ -1062,6 +1112,11 @@
             placeholder.style.display = 'none';
             photoDisplay.style.display = 'block';
 
+            const cc = document.getElementById('collision-counter');
+            cc.style.display = 'block';
+            cc.textContent = 'Collisions: 0';
+            cc.dataset.count = "0";
+
             // Fetch initial view
             // fetchInitialView();
             // We removed fetchInitialView here because handleMapClick now sets the view.
@@ -1073,7 +1128,7 @@
             logDebug("Live Control Started. Simulator Controls:");
             logDebug("- W/A/S/D: Move Forward/Left/Back/Right");
             logDebug("- Q/Z: Look Up/Down");
-            logDebug("- Arrow Keys: Look Up/Down/Left/Right by 30°");
+            logDebug("- Arrow Keys: Look Up/Down/Left/Right (10°)");
             logDebug("- E: Interact | F: Snap to Floor | 0: Reset Camera");
             logDebug("- ESC: Exit Live Control & Return to Menu");
         }
@@ -1110,10 +1165,10 @@
                 actionBtn.style.display = 'block';
                 actionBtn.onclick = handleAction; // Standard analysis loop
 
-                placeholder.innerHTML = "Browse a Sim, then use Simulator Controls:<br>- W/A/S/D: Move | Q/Z: Look Up/Down | Arrows: Look 30°<br>- E: Interact | F: Snap to Floor | 0: Reset Camera<br>- ESC: Exit Habitat Live Control";
+                placeholder.innerHTML = "Browse a Sim, then use Simulator Controls:<br>- W/A/S/D: Move | Q/Z & Arrows: Look 10°<br>- E: Interact | F: Snap to Floor | 0: Reset Camera<br>- ESC: Exit Habitat Live Control";
 
                 // Enable inputs
-                window.addEventListener('keydown', handleLiveControlKey);
+                // window.addEventListener('keydown', handleLiveControlKey); // Removed duplicate listener
                 // Mouse control would likely require pointer lock or similar, simple version for now
                 // window.addEventListener('mousemove', handleLiveControlMouse);
 
@@ -1229,10 +1284,10 @@
                 else if (keyLower === 'd') action = 'turn_right';
                 else if (keyLower === 'q') action = 'look_up';
                 else if (keyLower === 'z') action = 'look_down';
-                else if (key === 'ArrowUp') action = 'look_up_30';
-                else if (key === 'ArrowDown') action = 'look_down_30';
-                else if (key === 'ArrowLeft') action = 'turn_left_30';
-                else if (key === 'ArrowRight') action = 'turn_right_30';
+                else if (key === 'ArrowUp') action = 'look_up';
+                else if (key === 'ArrowDown') action = 'look_down';
+                else if (key === 'ArrowLeft') action = 'turn_left';
+                else if (key === 'ArrowRight') action = 'turn_right';
                 else if (keyLower === 'e') {
                     console.log("Interact triggered");
                     triggerInteract();
@@ -1263,6 +1318,7 @@
         function exitLiveControl() {
             // Remove listener
             document.removeEventListener('keydown', handleLiveControlKey);
+            document.getElementById('collision-counter').style.display = 'none';
 
             // Return to Habitat Selection UI
             document.getElementById('habitat-selection-overlay').style.display = 'flex';
@@ -1337,6 +1393,20 @@
                     photoDisplay.style.display = 'block';
                     placeholder.style.display = 'none';
                     video.style.display = 'none';
+
+                    if (data.collisions !== undefined) {
+                        const counterDiv = document.getElementById('collision-counter');
+                        if (counterDiv) {
+                            counterDiv.textContent = `Collisions: ${data.collisions}`;
+
+                            // Check if collisions increased and log it
+                            const currentCount = parseInt(counterDiv.dataset.count || "0");
+                            if (data.collisions > currentCount) {
+                                logDebug(`<span style="color:#f44747">Collision Detected! Total: ${data.collisions}</span>`);
+                            }
+                            counterDiv.dataset.count = data.collisions;
+                        }
+                    }
                 }
             } catch (e) { console.error(e); }
         }
@@ -1665,6 +1735,9 @@
             formData.append('file', fileBlob, 'image.jpg');
             formData.append('prompt', getCurrentPrompt());
             formData.append('device_choice', selectedDevice);
+            if (selectedModel) {
+                formData.append('model_choice', selectedModel);
+            }
 
             logDebug(`Starting analysis [Device: ${selectedDevice}]...`);
 
@@ -1705,7 +1778,7 @@
                             <div style="margin-bottom:15px; font-size: 19px; line-height: 1.6;">${data.response}</div>
                             <div style="border-top: 1px solid #555; padding-top: 12px; font-size: 16px; font-family: 'Consolas', monospace; color: #aaa;">
                                 <div style="display:flex; justify-content:space-between; margin-bottom: 5px;">
-                                    <span style="color: #4ec9b0; font-weight: bold;">Device: ${data.debug?.device || 'Unknown'}</span>
+                                    <span style="color: #4ec9b0; font-weight: bold;">Model: ${data.debug?.model_choice || 'Unknown'} | Device: ${data.debug?.device || 'Unknown'}</span>
                                     <span>Load: <span style="color:white;">${loadTime}</span> | Inf: <span style="color:white;">${infTime}</span></span>
                                 </div>
                                 <div style="display:flex; justify-content:space-between; margin-bottom: 5px;">
