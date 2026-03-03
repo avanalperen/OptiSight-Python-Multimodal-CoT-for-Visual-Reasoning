@@ -1,41 +1,31 @@
 # OptiSight Dashboard
 
 ## Requirements
-- Ubuntu
+- Ubuntu (WSL recommended for Windows users to use AI Habitat Sim)
 - Python 3.8+
-- CUDA GPU (Optional, for faster inference)
-- Torchvision, Av
+- CUDA GPU (NVIDIA Pascal+ recommended, e.g., GTX 1070)
+- Habitat-Sim & Transformers
 
-## 0. Prerequisites (Installing Conda)
-If you do not have Conda installed, we recommend **Miniconda** (a lightweight version).
+## Environment Setup
+This project uses two Conda environments to maintain compatibility between AI Habitat (Python 3.9) and newer VLMs (Python 3.12).
 
-**Quick Install (Linux):**
+### 1. Habitat Environment (Main)
+Used for the dashboard and physics simulation.
 ```bash
-mkdir -p ~/miniconda3
-wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda3/miniconda.sh
-bash ~/miniconda3/miniconda.sh -b -u -p ~/miniconda3
-rm -rf ~/miniconda3/miniconda.sh
-source ~/miniconda3/bin/activate
-conda init --all
+cd "linux setup"
+bash setup_conda.sh
+conda activate habitat
 ```
-*After running these commands, close and reopen your terminal.*
 
-## Setup (Conda)
-1. Ensure you have Anaconda or Miniconda installed.
-2. Open a terminal in this directory.
-3. Run the setup script to create the environment:
-   ```bash
-   cd linux_setup
-   bash setup_conda.sh
-   cd ..
-   ```
-   Or manually:
-   ```bash
-   conda env create -f linux_setup/environment.yml
-   ```
+### 2. Qwen 3.5 Bridge Environment (Automatic)
+Used for high-performance Qwen 3.5-VL inference. The main server starts this automatically.
+```bash
+cd "linux setup"
+bash setup_qwen35.sh
+```
 
 ## Running the Application
-1. Activate the Conda environment:
+1. Activate the main environment:
    ```bash
    conda activate habitat
    ```
@@ -45,14 +35,13 @@ conda init --all
    ```
 3. Open your web browser and navigate to:
    http://localhost:8000
-   
-> **Note:** The model path is `/home/aavan/Desktop/Project Files/Vision Language Models/qwen2-vl-2b`.
+    
+> **Note:** Qwen 3.5 models (0.8B/2B) are managed via a persistent bridge server for maximum speed and VRAM efficiency.
 
-## Deactivating the Environment
-To exit the environment when you are done, simply run:
-```bash
-conda deactivate
-```
+## Windows Users
+- **Option 1 (Native)**: Photo/Video analysis only (No Sim). Run `windows setup/run_windows.bat`.
+- **Option 2 (WSL - Recommended)**: Full features including AI Habitat. Follow the Linux setup steps inside a WSL Ubuntu terminal.
 
 ## Troubleshooting
-- If you see `Segmentation fault`, ensure `bitsandbytes` is not forcing 4-bit mode on unsupported GPUs. The server now defaults to `float16` or CPU fallback.
+- **CUDA Error (No Kernel Image)**: Ensure you are using the `qwen35` environment setup which includes CUDA 11.8 support for Pascal GPUs.
+- **Memory Issues**: The system now uses resolution resizing (448px) and a bridge architecture to stay within 8GB VRAM limits.

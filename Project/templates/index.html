@@ -443,6 +443,28 @@
             background: #e0e0e0;
         }
 
+        #btn-load-prompt {
+            padding: 8px 20px;
+            font-size: 16px;
+            background: white;
+            color: black;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-right: 5px;
+        }
+
+        #btn-load-prompt:hover {
+            background: #e0e0e0;
+        }
+
+        #btn-load-prompt.btn-dimmed {
+            opacity: 0.35;
+            pointer-events: none;
+            cursor: default;
+        }
+
         .btn-dimmed {
             opacity: 0.35;
             pointer-events: none;
@@ -595,9 +617,10 @@
                 </div>
 
                 <div id="model-selection-overlay" class="habitat-overlay">
-                    <h2 style="color: white; margin-bottom: 20px;">Select Vision Model</h2>
+                    <h2 style="color: white; margin-bottom: 20px;">Select Qwen Model</h2>
                     <button class="habitat-btn" onclick="selectModel('qwen2-2b')">Qwen 2B</button>
-                    <button class="habitat-btn" onclick="selectModel('deepseek-1.3b')">DeepSeek 1.3B</button>
+                    <button class="habitat-btn" onclick="selectModel('qwen3.5-0.8b')">Qwen 3.5-VL 0.8B</button>
+                    <button class="habitat-btn" onclick="selectModel('qwen3.5-2b')">Qwen 3.5-VL 2B</button>
                     <button style="margin-top:20px; background:transparent; border:none; color:#aaa; cursor:pointer;"
                         onclick="document.getElementById('model-selection-overlay').style.display='none'">Cancel</button>
                 </div>
@@ -650,6 +673,10 @@
                 <div class="checkbox-container">
                     <input type="checkbox" id="use-custom-prompt" onchange="togglePromptInput()">
                     <label for="use-custom-prompt" style="flex-grow:1;">Use Custom Prompt</label>
+                    <input type="file" id="prompt-file-input" accept=".txt,.md" style="display:none;"
+                        onchange="loadPromptFromFile(this)">
+                    <button id="btn-load-prompt" onclick="document.getElementById('prompt-file-input').click()">Load
+                        Prompt</button>
                     <button id="btn-save-prompt" onclick="savePrompt()">Save Prompt</button>
                 </div>
             </div>
@@ -1630,6 +1657,26 @@
             }
         }
 
+        function loadPromptFromFile(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const content = e.target.result;
+                promptInput.value = content;
+
+                // Enable custom prompt mode
+                const checkbox = document.getElementById('use-custom-prompt');
+                checkbox.checked = true;
+                togglePromptInput();
+
+                // Reset file input so same file can be loaded again if desired
+                input.value = '';
+            };
+            reader.readAsText(file);
+        }
+
         function updateFPS(val) {
             captureIntervalSec = val;
             fpsLabel.textContent = val;
@@ -1696,10 +1743,18 @@
 
             // Save Prompt button
             const savePromptBtn = document.getElementById('btn-save-prompt');
-            if (promptEmpty) {
+            if (promptEmpty || !document.getElementById('use-custom-prompt').checked) {
                 savePromptBtn.classList.add('btn-dimmed');
             } else {
                 savePromptBtn.classList.remove('btn-dimmed');
+            }
+
+            // Load Prompt button
+            const loadPromptBtn = document.getElementById('btn-load-prompt');
+            if (!document.getElementById('use-custom-prompt').checked) {
+                loadPromptBtn.classList.add('btn-dimmed');
+            } else {
+                loadPromptBtn.classList.remove('btn-dimmed');
             }
         }
 

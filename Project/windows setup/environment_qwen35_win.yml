@@ -1,16 +1,15 @@
-name: habitat-win
+name: qwen35
 channels:
   - pytorch
   - nvidia
   - conda-forge
   - defaults
 dependencies:
-  - python=3.10
+  - python=3.12
   - pytorch
   - torchvision
   - torchaudio
   - pytorch-cuda=11.8
-  - git
   - pip
   - pip:
     - transformers
@@ -19,13 +18,6 @@ dependencies:
     - fastapi
     - uvicorn
     - python-multipart
-    - opencv-python
+    - requests
     - pillow
     - numpy
-    - scipy
-    - jinja2
-    - websockets
-    - requests
-    - av
-    # bitsandbytes is excluded to avoid Windows compatibility issues. 
-    # Use float16 mode (default in this project) which works without it.

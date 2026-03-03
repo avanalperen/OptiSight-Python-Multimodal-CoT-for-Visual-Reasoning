@@ -16,6 +16,9 @@ import gc
 import time
 import webbrowser
 import webbrowser
+import json
+import requests
+import subprocess
 try:
     from habitat_controller import HabitatController
     HABITAT_AVAILABLE = True
@@ -37,6 +40,43 @@ MODEL_PATH = config.MODEL_PATH
 # Global model and processor
 model = None
 processor = None
+bridge_process = None
+
+def stop_bridge_server():
+    global bridge_process
+    if bridge_process:
+        logger.info("Stopping Qwen 3.5 Bridge Server...")
+        import signal
+        try:
+            os.killpg(os.getpgid(bridge_process.pid), signal.SIGTERM)
+        except:
+            pass
+        bridge_process = None
+
+def ensure_bridge_server():
+    global bridge_process
+    if bridge_process is None or bridge_process.poll() is not None:
+        logger.info("Starting Qwen 3.5 Bridge Server on port 8001...")
+        import subprocess
+        bridge_process = subprocess.Popen(
+            ["conda", "run", "-n", "qwen35", "python", "qwen35_bridge_server.py"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            preexec_fn=os.setsid
+        )
+        # Wait for health
+        for _ in range(30):
+            try:
+                resp = requests.get("http://127.0.0.1:8001/health", timeout=1)
+                if resp.status_code == 200:
+                    logger.info("Bridge server is healthy.")
+                    return True
+            except:
+                pass
+            time.sleep(1)
+        logger.error("Bridge server failed to respond.")
+        return False
+    return True
 
 def get_ram_usage():
     return psutil.virtual_memory().percent
@@ -85,6 +125,7 @@ async def lifespan(app: FastAPI):
         
     yield
     # Explicitly clear model on exit to free memory
+    stop_bridge_server()
     global model
     if model is not None:
         del model
@@ -192,12 +233,14 @@ def load_model_on_demand(device_choice="cpu", model_choice="qwen2-2b"):
     
     # If already loaded on the correct device and correct model, skip
     if model is not None:
-        current_device = "cuda" if model.device.type == "cuda" else "cpu"
+        # Current device check that handles both torch.device and string
+        current_device = "cuda" if (hasattr(model.device, 'type') and model.device.type == "cuda") or model.device == "cuda" else "cpu"
         # We need a way to track which model is loaded if we want to skip.
         # For simplicity, if we are switching models, we should reload.
         # Adding a simple check based on model type or config might be needed, 
         # but for now, let's track the loaded model type globally.
-        current_device = "cuda" if model.device.type == "cuda" else "cpu"
+        # Re-check current device
+        current_device = "cuda" if (hasattr(model.device, 'type') and model.device.type == "cuda") or model.device == "cuda" else "cpu"
         if getattr(model, "loaded_model_choice", None) == model_choice and current_device == device_choice:
             return 0
     
@@ -224,7 +267,14 @@ def load_model_on_demand(device_choice="cpu", model_choice="qwen2-2b"):
     logger.info(f"Loading {model_choice} on {device_choice}...")
     
     # Determine Model Path
-    target_model_path = config.QWEN_PATH if model_choice == "qwen2-2b" else config.DEEPSEEK_PATH
+    if model_choice == "qwen2-2b":
+        target_model_path = config.QWEN_PATH
+    elif model_choice == "qwen3.5-0.8b":
+        target_model_path = config.QWEN35_08B_PATH
+    elif model_choice == "qwen3.5-2b":
+        target_model_path = config.QWEN35_2B_PATH
+    else:
+        target_model_path = config.QWEN_PATH # Fallback
     
     try:
         from transformers import AutoProcessor, AutoModelForCausalLM
@@ -248,30 +298,14 @@ def load_model_on_demand(device_choice="cpu", model_choice="qwen2-2b"):
                 min_pixels=16*28*28, 
                 max_pixels=128*28*28
             )
-        elif model_choice == "deepseek-1.3b":
-            # DeepSeek specific loading using their library classes
-            from deepseek_vl.models import MultiModalityCausalLM, VLChatProcessor
-            
-            if device_choice == "cuda":
-                MultiModalityCausalLM._supports_sdpa = True
-            
-            device_map_choice = "auto" if device_choice == "cuda" else "cpu"
-            torch_dtype_choice = torch.bfloat16 if device_choice == "cuda" else torch.float32
-
-            load_kwargs = {
-                "trust_remote_code": True,
-                "torch_dtype": torch_dtype_choice,
-                "device_map": device_map_choice
-            }
-            if device_choice == "cuda":
-                load_kwargs["attn_implementation"] = "sdpa"
-
-            model = MultiModalityCausalLM.from_pretrained(
-                target_model_path,
-                **load_kwargs
-            )
-            processor = VLChatProcessor.from_pretrained(target_model_path)
-            
+        elif model_choice in ["qwen3.5-0.8b", "qwen3.5-2b"]:
+            # Ensure the bridge server is running
+            ensure_bridge_server()
+            # For Qwen 3.5, we don't load in this process (uses bridge script)
+            model = type('MockModel', (), {'loaded_model_choice': model_choice, 'device': device_choice})()
+            processor = None
+            logger.info(f"{model_choice} managed via persistent bridge server.")
+        
         model.loaded_model_choice = model_choice  # Track the loaded model
         
         load_time = time.time() - start_load
@@ -346,8 +380,8 @@ async def analyze(
         contents = await file.read()
         image = Image.open(io.BytesIO(contents)).convert("RGB")
         
-        # Aggressive Resize to improve performance (max 384px on longest side for Qwen, 224px for DeepSeek)
-        max_size = 384 if model_choice == "qwen2-2b" else 384
+        # Aggressive Resize to improve performance (448px for Qwen)
+        max_size = 448
         if max(image.size) > max_size:
             ratio = max_size / max(image.size)
             new_size = (int(image.size[0] * ratio), int(image.size[1] * ratio))
@@ -379,7 +413,14 @@ async def analyze(
                 ).to(model.device)
 
             with torch.no_grad():
-                generated_ids = model.generate(**inputs, max_new_tokens=200, do_sample=False)
+                generated_ids = model.generate(
+                    **inputs,
+                    max_new_tokens=150,
+                    do_sample=True,
+                    temperature=0.1,
+                    top_p=0.9,
+                    repetition_penalty=1.1
+                )
                 
             generated_ids_trimmed = [
                 out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
@@ -390,74 +431,43 @@ async def analyze(
             final_response = output_text[0]
             del inputs, generated_ids, generated_ids_trimmed
 
-        elif model_choice == "deepseek-1.3b":
-
-            # DeepSeek-VL Preprocessing
-            conversation = [
-                {
-                    "role": "User",
-                    "content": f"<image_placeholder> {prompt}",
-                    "images": [image]
-                },
-                {
-                    "role": "Assistant",
-                    "content": ""
-                }
-            ]
+        elif model_choice in ["qwen3.5-0.8b", "qwen3.5-2b"]:
+            # Qwen 3.5 Inference via Bridge Server
+            logger.info(f"Running {model_choice} inference via persistent bridge...")
             
-            from deepseek_vl.utils.io import load_pil_images
-            from deepseek_vl.models import MultiModalityCausalLM, VLChatProcessor
-            from transformers import StoppingCriteria, StoppingCriteriaList
+            # 1. Save temp image
+            temp_image_path = os.path.join(os.getcwd(), "temp_analyze_image.jpg")
+            image.save(temp_image_path)
             
-            class StoppingCriteriaSub(StoppingCriteria):
-                def __init__(self, stops=[], encounters=1):
-                    super().__init__()
-                    self.stops = [stop.to(model.device) for stop in stops]
-            
-                def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs):
-                    for stop in self.stops:
-                        if input_ids.shape[-1] >= len(stop) and torch.all((stop == input_ids[0][-len(stop):])).item():
-                            return True
-                    return False
-            
-            stop_words = ["<｜end of sentence｜>", "User:", "\nUser", "Assistant:", "User"]
-            stop_words_ids = [torch.tensor(processor.tokenizer.encode(word, add_special_tokens=False)) for word in stop_words]
-            stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids)])
-            
-            # Use their processor directly to prep for generation
-            prepare_inputs = processor(
-                conversations=conversation,
-                images=[image],
-                force_batchify=True
-            ).to(model.device)
-            
-            # run image encoder to get the image embeddings
-            inputs_embeds = model.prepare_inputs_embeds(**prepare_inputs)
-            
-            with torch.no_grad():
-                outputs = model.language_model.generate(
-                    inputs_embeds=inputs_embeds,
-                    attention_mask=prepare_inputs.attention_mask,
-                    pad_token_id=processor.tokenizer.eos_token_id,
-                    bos_token_id=processor.tokenizer.bos_token_id,
-                    eos_token_id=processor.tokenizer.eos_token_id,
-                    max_new_tokens=200,
-                    do_sample=False,
-                    use_cache=True,
-                    stopping_criteria=stopping_criteria
-                )
-            
-            # DeepSeek-VL generated output only contains new tokens when inputs_embeds is used.
-            # We don't need to slice it using input_length.
-            final_response = processor.tokenizer.decode(outputs[0].cpu().tolist(), skip_special_tokens=True).strip()
-            
-            # Clean up hallucinated conversational loops if DeepSeek forgets to stop
-            if "User:" in final_response:
-                final_response = final_response.split("User:")[0].strip()
-            if "Assistant:" in final_response:
-                final_response = final_response.split("Assistant:")[0].strip()
+            # 2. Determine target path from config
+            if model_choice == "qwen3.5-0.8b":
+                target_path = config.QWEN35_08B_PATH
+            else:
+                target_path = config.QWEN35_2B_PATH
                 
-            del prepare_inputs, inputs_embeds, outputs
+            # 3. Call Bridge Server API
+            try:
+                ensure_bridge_server() # Double check
+                api_payload = {
+                    "model_path": target_path,
+                    "image_path": temp_image_path,
+                    "prompt": prompt,
+                    "device": device_choice
+                }
+                resp = requests.post("http://127.0.0.1:8001/analyze", json=api_payload, timeout=120)
+                result_data = resp.json()
+                
+                if result_data.get("status") == "success":
+                    final_response = result_data.get("response")
+                else:
+                    final_response = f"Bridge Error: {result_data.get('message')}"
+                    logger.error(f"Bridge Inference Error: {result_data.get('message')}\nTraceback: {result_data.get('traceback')}")
+            except Exception as e:
+                final_response = f"Bridge Communication Error: {str(e)}"
+                logger.error(f"Bridge Communication Error: {str(e)}")
+            finally:
+                if os.path.exists(temp_image_path):
+                    os.remove(temp_image_path)
 
         else:
             final_response = "Unsupported model selected."
@@ -483,7 +493,7 @@ async def analyze(
                 "load_time": f"{load_time:.2f}s",
                 "ram_usage": f"{ram_start}% -> {ram_end}%",
                 "gpu_usage": f"{gpu_start['percent']}% ({gpu_start['usage']}) -> {gpu_end['percent']}% ({gpu_end['usage']})",
-                "device": "GPU" if model.device.type == "cuda" else "CPU",
+                "device": "GPU" if (hasattr(model.device, 'type') and model.device.type == "cuda") or model.device == "cuda" else "CPU",
                 "model_choice": model_choice
             }
         }
@@ -532,6 +542,9 @@ async def init_sim(file: UploadFile = File(None), scene_name: str = Form(None)):
         # HSSD files usually look like "102343992.glb" or "108736611_177263226.glb"
         # We need the handle (filename without extension) and the dataset config
         hssd_config_path = "/home/aavan/Desktop/Project Files/AIHabitat Project/Hssd Habitat Dataset/hssd/hssd-hab.scene_dataset_config.json"
+        
+        # Pre-activate Qwen 3.5 bridge as requested
+        ensure_bridge_server()
         
         sim_settings = {}
         if "hssd" in scene_to_use or os.path.exists(hssd_config_path):

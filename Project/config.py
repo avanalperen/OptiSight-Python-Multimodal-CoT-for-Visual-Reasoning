@@ -8,7 +8,8 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # --- Model Path Configuration ---
 
 QWEN_PATH = "/home/aavan/Desktop/Project Files/Vision Language Models/qwen2-vl-2b"
-DEEPSEEK_PATH = "/home/aavan/Desktop/Project Files/Vision Language Models/deepseek-vl-1.3b"
+QWEN35_08B_PATH = "/home/aavan/Desktop/Project Files/Vision Language Models/qwen3.5-vl-0.8b"
+QWEN35_2B_PATH = "/home/aavan/Desktop/Project Files/Vision Language Models/qwen3.5-vl-2b"
 
 # Default Model path for initial load/fallback
 MODEL_PATH = QWEN_PATH
