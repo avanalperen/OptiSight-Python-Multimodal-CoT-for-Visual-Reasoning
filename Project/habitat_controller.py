@@ -8,12 +8,17 @@ import cv2
 import base64
 from PIL import Image
 import io
+from collections import deque
+import re
 
 class HabitatController:
     def __init__(self, scene_path, width=1920, height=1080, dataset_config=None, enable_physics=True):
         self.scene_path = scene_path
         self.width = width
         self.height = height
+        
+        # OptiSight Memory System (Previous 2 commands + reasoning)
+        self.memory = deque(maxlen=2)
         
         # Configure Simulator
         self.sim_cfg = habitat_sim.SimulatorConfiguration()
@@ -135,8 +140,20 @@ class HabitatController:
             # Fallback for HSSD scenes without NavMesh
             agent_state.position = np.array([0.0, 1.0, 0.0]) 
             
+            
         self.agent.set_state(agent_state)
 
+    def get_memory_string(self):
+        """Returns the current state records for prompt injection."""
+        return " | ".join(self.memory) if self.memory else "None"
+
+    def record_vlm_action(self, command, reasoning):
+        """Updates the persistent memory with the latest AI decision."""
+        self.memory.append(f"[{command}] - {reasoning}")
+
+    def clear_memory(self):
+        """Clear historical memory."""
+        self.memory.clear()
 
     def move_agent(self, action):
         """

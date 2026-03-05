@@ -529,6 +529,87 @@
             cursor: crosshair;
             display: none;
         }
+
+        /* 3x3 Grid Overlay */
+        .grid-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 35;
+            display: none;
+            pointer-events: none;
+            /* Let clicks pass through to video/photo/sim */
+        }
+
+        .grid-line-v {
+            position: absolute;
+            width: 1px;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.6);
+        }
+
+        .grid-line-h {
+            position: absolute;
+            height: 1px;
+            width: 100%;
+            background-color: rgba(255, 255, 255, 0.6);
+        }
+
+        /* Logic for Grid Layout */
+        #grid-v1 {
+            left: 33.33%;
+        }
+
+        #grid-v2 {
+            left: 66.66%;
+        }
+
+        #grid-h1 {
+            top: 33.33%;
+        }
+
+        #grid-h2 {
+            top: 66.66%;
+        }
+
+        .checkbox-grid-container {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #ddd;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            user-select: none;
+            transition: opacity 0.2s;
+        }
+
+        #fps-slider {
+            width: 80px;
+            /* Shortened for grid checkbox */
+        }
+
+        #fps-slider {
+            width: 70px;
+            /* Shortened to fit grid checkbox */
+        }
+
+        .grid-checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: #ccc;
+            font-size: 13px;
+            user-select: none;
+            transition: opacity 0.2s;
+        }
+
+        .grid-checkbox-container.dimmed {
+            opacity: 0.3;
+            pointer-events: none;
+        }
     </style>
 </head>
 
@@ -569,6 +650,22 @@
             </div>
 
             <div class="video-container">
+                <!-- 3x3 Grid Overlay -->
+                <div id="grid-overlay" class="grid-overlay"
+                    style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; z-index:45; pointer-events:none;">
+                    <div
+                        style="position:absolute; left:33.33%; width:1px; height:100%; background:rgba(255,255,255,0.6);">
+                    </div>
+                    <div
+                        style="position:absolute; left:66.66%; width:1px; height:100%; background:rgba(255,255,255,0.6);">
+                    </div>
+                    <div
+                        style="position:absolute; top:33.33%; height:1px; width:100%; background:rgba(255,255,255,0.6);">
+                    </div>
+                    <div
+                        style="position:absolute; top:66.66%; height:1px; width:100%; background:rgba(255,255,255,0.6);">
+                    </div>
+                </div>
                 <video id="video-feed" controls playsinline style="display:none;"></video>
                 <img id="captured-photo" style="display:none;" />
                 <canvas id="canvas" style="display:none;"></canvas> <!-- Original canvas for photo capture? -->
@@ -579,9 +676,8 @@
 
                 <div id="habitat-selection-overlay" class="habitat-overlay">
                     <h2 style="color: white; margin-bottom: 20px;">Select Habitat Mode</h2>
-                    <button class="habitat-btn disabled" disabled>Record Route Video (Soon)</button>
                     <button class="habitat-btn" onclick="selectHabitatMode('live')">Live Control</button>
-                    <button class="habitat-btn disabled" disabled>Autonomous VLM (Soon)</button>
+                    <button class="habitat-btn" onclick="selectHabitatMode('autonomous')">Autonomous VLM</button>
                     <button id="cancel-habitat-overlay"
                         style="margin-top:20px; background:transparent; border:none; color:#aaa; cursor:pointer;"
                         onclick="document.getElementById('habitat-selection-overlay').style.display='none'">Cancel</button>
@@ -662,6 +758,11 @@
                     </div>
 
                     <button id="action-btn" onclick="handleAction()" style="display: none;"></button>
+
+                    <div class="checkbox-grid-container" id="grid-checkbox-container">
+                        <input type="checkbox" id="grid-toggle-checkbox" onchange="toggleGrid()">
+                        <label for="grid-toggle-checkbox">3x3 Grid</label>
+                    </div>
                 </div>
             </div>
         </div>
@@ -669,7 +770,8 @@
         <div class="right-panel">
             <div class="section">
                 <label>Prompt Settings</label>
-                <textarea id="prompt-input" disabled>Describe this image</textarea>
+                <textarea id="prompt-input"
+                    disabled>Analyze the scene and decide the next action. Previous memory: {PREVIOUS_MEMORY}. Provide reasoning and command in <cmd>COMMAND</cmd> format.</textarea>
                 <div class="checkbox-container">
                     <input type="checkbox" id="use-custom-prompt" onchange="togglePromptInput()">
                     <label for="use-custom-prompt" style="flex-grow:1;">Use Custom Prompt</label>
@@ -996,11 +1098,10 @@
                     updateActionButton();
                     alert("Scene loaded: " + sceneName);
 
-                    if (habitatSubMode === 'live') {
-                        // fetchInitialView();
+                    if (habitatSubMode === 'live' || habitatSubMode === 'autonomous') {
                         showMapSelection();
                     } else {
-                        // Show habitat mode overlay after scene load if not already in a mode
+                        // Default fallback
                         document.getElementById('habitat-selection-overlay').style.display = 'flex';
                     }
                 } else {
@@ -1032,7 +1133,7 @@
                     console.error("Failed to get map:", data.message);
                     alert("Could not generate map for this scene. Starting at default position.");
                     // Fallback to start
-                    if (habitatSubMode === 'live') {
+                    if (habitatSubMode === 'live' || habitatSubMode === 'autonomous') {
                         // Start Live Control immediately
                         // ... Code to start live control view ...
                         startLiveControlView();
@@ -1041,7 +1142,7 @@
             } catch (e) {
                 console.error("Network error getting map:", e);
                 // Fallback
-                if (habitatSubMode === 'live') {
+                if (habitatSubMode === 'live' || habitatSubMode === 'autonomous') {
                     startLiveControlView();
                 }
             }
@@ -1049,7 +1150,7 @@
 
         function closeMapOverlay() {
             document.getElementById('map-selection-overlay').style.display = 'none';
-            if (habitatSubMode === 'live') {
+            if (habitatSubMode === 'live' || habitatSubMode === 'autonomous') {
                 startLiveControlView();
             }
         }
@@ -1172,32 +1273,12 @@
 
             const actionBtn = document.getElementById('action-btn');
 
-            if (subMode === 'record') {
-                actionBtn.textContent = "Record Video";
-                actionBtn.style.display = 'block';
-                actionBtn.onclick = handleRecordVideo;
-
-                // Enable Route Drawing
-                const rc = document.getElementById('route-canvas');
-                rc.style.display = 'block';
-                // Resize canvas to match container
-                const container = document.querySelector('.video-container');
-                rc.width = container.clientWidth;
-                rc.height = container.clientHeight;
-
-                placeholder.textContent = "Browse a Sim, then click to draw route.";
-
-            } else if (subMode === 'live') {
+            if (subMode === 'live' || subMode === 'autonomous') {
                 actionBtn.textContent = "Start Sim Analysis";
                 actionBtn.style.display = 'block';
                 actionBtn.onclick = handleAction; // Standard analysis loop
 
                 placeholder.innerHTML = "Browse a Sim, then use Simulator Controls:<br>- W/A/S/D: Move | Q/Z & Arrows: Look 10°<br>- E: Interact | F: Snap to Floor | 0: Reset Camera<br>- ESC: Exit Habitat Live Control";
-
-                // Enable inputs
-                // window.addEventListener('keydown', handleLiveControlKey); // Removed duplicate listener
-                // Mouse control would likely require pointer lock or similar, simple version for now
-                // window.addEventListener('mousemove', handleLiveControlMouse);
 
                 // Fetch initial view -> CHANGED to Map Selection
                 if (currentSourceName) {
@@ -1509,7 +1590,7 @@
                 const data = await res.json();
                 if (data.status === 'success') {
                     logDebug(`Simulator initialized successfully.`);
-                    if (habitatSubMode === 'live') {
+                    if (habitatSubMode === 'live' || habitatSubMode === 'autonomous') {
                         // fetchInitialView();
                         showMapSelection();
                     }
@@ -1534,12 +1615,7 @@
                 actionBtn.style.backgroundColor = "rgba(0, 122, 204, 0.8)";
                 actionBtn.style.color = "white";
             } else if (currentMode === 'habitat') {
-                if (habitatSubMode === 'record') {
-                    actionBtn.textContent = "Record Video";
-                    actionBtn.style.backgroundColor = "rgba(200, 50, 50, 0.9)";
-                    actionBtn.style.color = "white";
-                } else {
-                    // Live or default
+                if (habitatSubMode === 'live' || habitatSubMode === 'autonomous') {
                     if (isStreaming) {
                         actionBtn.textContent = "Stop Analysis";
                         actionBtn.style.backgroundColor = "rgba(204, 0, 0, 0.8)";
@@ -1570,20 +1646,63 @@
 
             // Dimmed when no content (checks)
             const fpsControl = document.getElementById('fps-control');
+            const gridControl = document.getElementById('grid-checkbox-container');
             // For Habitat Record mode, we need content (sim selected) AND we ignore isStreaming
             if (!hasContent) {
                 actionBtn.classList.add('btn-dimmed');
                 fpsControl.classList.add('btn-dimmed');
+                gridControl.classList.add('dimmed');
+                document.getElementById('grid-toggle-checkbox').disabled = true;
             } else {
                 actionBtn.classList.remove('btn-dimmed');
                 fpsControl.classList.remove('btn-dimmed');
+                gridControl.classList.remove('dimmed');
+                document.getElementById('grid-toggle-checkbox').disabled = false;
             }
+        }
+
+        function toggleGrid() {
+            const isChecked = document.getElementById('grid-toggle-checkbox').checked;
+            const gridOverlay = document.getElementById('grid-overlay');
+            gridOverlay.style.display = isChecked ? 'block' : 'none';
+        }
+
+        async function getProcessedBlob(originalBlob) {
+            const isGridEnabled = document.getElementById('grid-toggle-checkbox').checked;
+            if (!isGridEnabled) return originalBlob;
+
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+
+                    // Draw 3x3 Grid
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+                    ctx.lineWidth = 2; // Visible for VLM
+
+                    // Vertical lines
+                    ctx.beginPath();
+                    ctx.moveTo(canvas.width / 3, 0); ctx.lineTo(canvas.width / 3, canvas.height);
+                    ctx.moveTo(2 * canvas.width / 3, 0); ctx.lineTo(2 * canvas.width / 3, canvas.height);
+                    // Horizontal lines
+                    ctx.moveTo(0, canvas.height / 3); ctx.lineTo(canvas.width, canvas.height / 3);
+                    ctx.moveTo(0, 2 * canvas.height / 3); ctx.lineTo(canvas.width, 2 * canvas.height / 3);
+                    ctx.stroke();
+
+                    canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.9);
+                };
+                img.src = URL.createObjectURL(originalBlob);
+            });
         }
 
         function handleAction() {
             if (currentMode === 'photo') {
                 analyzePhoto();
-            } else if (currentMode === 'habitat' && habitatSubMode === 'live') {
+            } else if (currentMode === 'habitat' && (habitatSubMode === 'live' || habitatSubMode === 'autonomous')) {
                 analyzeSimSnapshot();
             } else {
                 toggleStream();
@@ -1607,12 +1726,14 @@
                 byteNumbers[i] = byteCharacters.charCodeAt(i);
             }
             const byteArray = new Uint8Array(byteNumbers);
-            const blob = new Blob([byteArray], { type: 'image/jpeg' });
+            const originalBlob = new Blob([byteArray], { type: 'image/jpeg' });
 
             logDebug("Capturing simulator snapshot for analysis...");
 
+            const blobToSend = await getProcessedBlob(originalBlob);
+
             // Send to backend asynchronously without awaiting so UI doesn't freeze
-            sendFileToBackend(blob).catch(e => {
+            sendFileToBackend(blobToSend).catch(e => {
                 console.error("Async analysis error:", e);
                 logDebug(`<span style="color:#f44747">Async Error: ${e}</span>`);
             });
@@ -1793,6 +1914,9 @@
             if (selectedModel) {
                 formData.append('model_choice', selectedModel);
             }
+            if (currentMode === 'habitat') {
+                formData.append('habitat_submode', habitatSubMode);
+            }
 
             logDebug(`Starting analysis [Device: ${selectedDevice}]...`);
 
@@ -1869,7 +1993,8 @@
 
         async function analyzePhoto() {
             if (photoUpload.files && photoUpload.files[0]) {
-                await sendFileToBackend(photoUpload.files[0]);
+                const blobToSend = await getProcessedBlob(photoUpload.files[0]);
+                await sendFileToBackend(blobToSend);
             }
         }
 
@@ -1911,8 +2036,9 @@
             if (currentMode === 'video' && video.paused) return;
 
             lastAnalysisTimestamp = Date.now();
-            const blob = await captureFrameFromVideo();
-            await sendFileToBackend(blob);
+            const originalBlob = await captureFrameFromVideo();
+            const blobToSend = await getProcessedBlob(originalBlob);
+            await sendFileToBackend(blobToSend);
 
             // Schedule next if still active and not paused
             if (isStreaming && (currentMode !== 'video' || !video.paused)) {

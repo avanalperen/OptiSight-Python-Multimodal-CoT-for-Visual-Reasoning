@@ -25,7 +25,14 @@ try:
 except ImportError:
     HabitatController = None
     HABITAT_AVAILABLE = False
-    logger.warning("Habitat Sim not found or failed to load. Simulation features will be disabled.")
+
+from collections import deque
+import re
+
+from collections import deque
+import re
+
+logger = logging.getLogger(__name__)
 
 import config
 
@@ -259,9 +266,10 @@ def load_model_on_demand(device_choice="cpu", model_choice="qwen2-2b"):
     for _ in range(3):
         gc.collect()
         if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-            torch.cuda.ipc_collect()
-            torch.cuda.synchronize()
+            with habitat_lock:
+                torch.cuda.empty_cache()
+                torch.cuda.ipc_collect()
+                torch.cuda.synchronize()
 
     start_load = time.time()
     logger.info(f"Loading {model_choice} on {device_choice}...")
@@ -344,8 +352,9 @@ async def unload_model_endpoint():
     for _ in range(3):
         gc.collect()
         if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-            torch.cuda.ipc_collect()
+            with habitat_lock:
+                torch.cuda.empty_cache()
+                torch.cuda.ipc_collect()
     
     # Wait briefly for NVIDIA drivers to update their memory reporting
     import time
@@ -359,15 +368,21 @@ async def analyze(
     file: UploadFile = File(...),
     prompt: str = Form(...),
     device_choice: str = Form("cpu"),
-    model_choice: str = Form("qwen2-2b")
+    model_choice: str = Form("qwen2-2b"),
+    habitat_submode: str = Form(None)
 ):
-    global model, processor
+    global model, processor, habitat_controller
     
     import gc
     import time
     start_time = time.time()
     
     try:
+        # 1. Prompt Injection - Handle memory system
+        if "{PREVIOUS_MEMORY}" in prompt and habitat_controller:
+            mem_str = habitat_controller.get_memory_string()
+            prompt = prompt.replace("{PREVIOUS_MEMORY}", mem_str)
+            logger.info(f"Injected memory into prompt: {mem_str}")
         # On-demand loading
         load_time = load_model_on_demand(device_choice, model_choice)
         
@@ -473,17 +488,38 @@ async def analyze(
             final_response = "Unsupported model selected."
 
         inference_end = time.time()
+        
+        # 2. Extract Reasoning/Command for Stateful Controller and Auto-Execution
+        if habitat_submode in ['live', 'autonomous'] and habitat_controller:
+            # Sentence extraction for Reasoning
+            reasoning_match = re.search(r'Reasoning:\s*(.*?)(?=\. <cmd>|$)', final_response, re.IGNORECASE)
+            # If standard regex fails, look for 'Reasoning:' until the end or first period
+            if not reasoning_match:
+                reasoning_match = re.search(r'Reasoning:\s*(.*?)(?=\.|$)', final_response, re.IGNORECASE)
+            
+            reasoning = reasoning_match.group(1).strip() if reasoning_match else "Reasoning omitted."
+            
+            # Command extraction: <cmd>...</cmd>
+            command_match = re.search(r'<cmd>(.*?)</cmd>', final_response, re.IGNORECASE)
+            
+            if command_match:
+                extracted_cmd = command_match.group(1).strip()
+                logger.info(f"System identified command: {extracted_cmd} | Reasoning: {reasoning}")
+                
+                # Update persistent memory within the core controller
+                habitat_controller.record_vlm_action(extracted_cmd, reasoning)
+                
+                # If autonomous, execute movement immediately in simulator
+                if habitat_submode == 'autonomous':
+                    with habitat_lock:
+                        logger.info(f"AUTONOMOUS EXECUTION: {extracted_cmd}")
+                        habitat_controller.move_agent(extracted_cmd)
+
         total_time = time.time() - start_time
         inference_time = inference_end - inference_start
         
         ram_end = get_ram_usage()
         gpu_end = get_gpu_info()
-        logger.info(f"Analysis Complete. Total time: {total_time:.2f}s")
-        logger.info(f"Resources [End] - RAM: {ram_end}%, GPU: {gpu_end['percent']}% ({gpu_end['usage']})")
-        
-        gc.collect()
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
         
         return {
             "response": final_response,
