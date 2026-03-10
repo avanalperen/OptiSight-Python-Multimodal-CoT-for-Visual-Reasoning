@@ -14,25 +14,35 @@ CRITICAL RULES:
 
 === FEW-SHOT EXAMPLES ===
 
-Example 1 (Avoiding Obstacle):
+Example 1 (Starting the Navigation):
 Memory: 
 1. None
-2. [Turn Left] - Center was blocked by a large rock, so I navigated left.
+2. None
 Output:
-Observation: Center is clear. Left has crops. Right is the rock I just passed.
+Observation: Center is clear. Left and Right are walls. No door is visible yet.
 Goal_Check: NO. Door is not visible.
-Reasoning: I have successfully bypassed the rock, so I must turn right to return to my original forward trajectory.
-<cmd>Turn Right</cmd>
+Reasoning: I am just starting my navigation and the path ahead is clear, so I will proceed forward to explore the hallway.
+<cmd>Go Ahead</cmd>
 
-Example 2 (Continuing the Sequence):
+Example 2 (Encountering an Obstacle):
+Memory: 
+1. None
+2. [Go Ahead] - I am just starting my navigation and the path ahead is clear, so I will proceed forward to explore the hallway.
+Output:
+Observation: Center is blocked by a large plant. Left has an open path. Right is a wall.
+Goal_Check: NO. Door is not visible.
+Reasoning: The path I was following is now blocked by a plant, so I must navigate left to go around the obstacle.
+<cmd>Turn Left</cmd>
+
+Example 3 (Returning to Path):
 Memory:
-1. [Turn Left] - Center was blocked by a large rock, so I navigated left.
-2. [Turn Right] - I have successfully bypassed the rock, so I must turn right to return to my original forward trajectory.
+1. [Go Ahead] - I am just starting my navigation and the path ahead is clear, so I will proceed forward to explore the hallway.
+2. [Turn Left] - The path I was following is now blocked by a plant, so I must navigate left to go around the obstacle.
 Output:
 Observation: Center is clear. A door is visible straight ahead. Left and Right are walls.
 Goal_Check: YES. Door is in sight.
-Reasoning: Having returned to my original path after bypassing the obstacle, the target door is straight ahead, so I will proceed forward to pass through it.
-<cmd>Go Ahead</cmd>
+Reasoning: I have successfully bypassed the plant, so I must turn right to return to my original forward trajectory towards the door.
+<cmd>Turn Right</cmd>
 
 ========================
 

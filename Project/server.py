@@ -95,6 +95,17 @@ habitat_controller = None
 import threading
 habitat_lock = threading.Lock()
 SCENE_PATH = config.SCENE_PATH
+SETTINGS_FILE = "settings.json"
+SESSION_SETTINGS = {"height": 0.0, "height_lock": False}
+
+def load_settings():
+    # For session-only settings, we return the current session settings
+    # and do not load from a file.
+    return SESSION_SETTINGS
+
+def save_settings(settings):
+    global SESSION_SETTINGS
+    SESSION_SETTINGS.update(settings)
 
 def get_gpu_info():
     """Returns GPU usage percentage and memory if available."""
@@ -369,7 +380,8 @@ async def analyze(
     prompt: str = Form(...),
     device_choice: str = Form("cpu"),
     model_choice: str = Form("qwen2-2b"),
-    habitat_submode: str = Form(None)
+    habitat_submode: str = Form(None),
+    memory_mode: str = Form("true")
 ):
     global model, processor, habitat_controller
     
@@ -380,9 +392,15 @@ async def analyze(
     try:
         # 1. Prompt Injection - Handle memory system
         if "{PREVIOUS_MEMORY}" in prompt and habitat_controller:
-            mem_str = habitat_controller.get_memory_string()
-            prompt = prompt.replace("{PREVIOUS_MEMORY}", mem_str)
-            logger.info(f"Injected memory into prompt: {mem_str}")
+            if memory_mode.lower() == "true":
+                mem_str = habitat_controller.get_memory_string()
+                prompt = prompt.replace("{PREVIOUS_MEMORY}", mem_str)
+                logger.info(f"Injected memory into prompt: {mem_str}")
+            else:
+                prompt = prompt.replace("Previous memory: {PREVIOUS_MEMORY}.", "")
+                prompt = prompt.replace("{PREVIOUS_MEMORY}", "None")
+                logger.info("Memory mode disabled, omitted memory from prompt.")
+        
         # On-demand loading
         load_time = load_model_on_demand(device_choice, model_choice)
         
@@ -491,6 +509,9 @@ async def analyze(
         
         # 2. Extract Reasoning/Command for Stateful Controller and Auto-Execution
         if habitat_submode in ['live', 'autonomous'] and habitat_controller:
+            # Capture the memory state BEFORE we append the new action
+            mem_str_for_display = habitat_controller.get_memory_string()
+            
             # Sentence extraction for Reasoning
             reasoning_match = re.search(r'Reasoning:\s*(.*?)(?=\. <cmd>|$)', final_response, re.IGNORECASE)
             # If standard regex fails, look for 'Reasoning:' until the end or first period
@@ -514,6 +535,22 @@ async def analyze(
                     with habitat_lock:
                         logger.info(f"AUTONOMOUS EXECUTION: {extracted_cmd}")
                         habitat_controller.move_agent(extracted_cmd)
+
+        # 3. Clean and format the final response for display
+        if habitat_submode in ['live', 'autonomous'] and habitat_controller:
+            formatted_response = final_response
+            
+            # Add double newlines before keywords
+            if memory_mode.lower() == "true":
+                for keyword in ["Observation:", "Goal_Check:", "Reasoning:", "<cmd>"]:
+                    formatted_response = re.sub(rf'(?i)({keyword})', r'\n\n\1', formatted_response)
+                
+                # Prepend the actual Memory injected in the prompt (before the new action)
+                formatted_response = f"Memory:\n{mem_str_for_display}\n\n" + formatted_response.strip()
+            
+            # Normalize excessive newlines to exactly two
+            formatted_response = re.sub(r'\n{3,}', '\n\n', formatted_response).strip()
+            final_response = formatted_response
 
         total_time = time.time() - start_time
         inference_time = inference_end - inference_start
@@ -597,6 +634,11 @@ async def init_sim(file: UploadFile = File(None), scene_name: str = Form(None)):
 
         with habitat_lock:
             habitat_controller = HabitatController(scene_to_use, **sim_settings)
+            # Apply persisted settings
+            settings = load_settings()
+            habitat_controller.set_height_offset(settings.get("height", 0.0))
+            habitat_controller.clear_memory()
+            
         return {"status": "success", "message": f"Simulator initialized with {os.path.basename(scene_to_use)}"}
     except Exception as e:
         logger.error(f"Failed to init simulator: {e}")
@@ -704,6 +746,7 @@ async def reset_camera():
             return {"status": "error", "message": "Simulator not initialized"}
         try:
             frame_base64 = habitat_controller.reset_camera()
+            habitat_controller.clear_memory()
             return {"status": "success", "frame": frame_base64}
         except Exception as e:
             return {"status": "error", "message": str(e)}
@@ -716,6 +759,7 @@ async def snap_to_floor():
             return {"status": "error", "message": "Simulator not initialized"}
         try:
             frame_base64 = habitat_controller.snap_to_floor()
+            habitat_controller.clear_memory()
             return {"status": "success", "frame": frame_base64}
         except Exception as e:
             return {"status": "error", "message": str(e)}
@@ -729,11 +773,36 @@ async def spawn_starter():
         try:
              success, frame = habitat_controller.spawn_starter()
              if success:
+                 habitat_controller.clear_memory()
                  return {"status": "success", "frame": frame}
              else:
                  return {"status": "error", "message": "Failed to spawn"}
         except Exception as e:
              return {"status": "error", "message": str(e)}
+
+@app.post("/update_height")
+async def update_height(height: float = Form(...), locked: bool = Form(...)):
+    global habitat_controller
+    # Clamp height between -1.2m and 1.0m (max 1.0m as requested)
+    clamped_height = max(-1.2, min(1.0, height))
+    settings = {"height": clamped_height, "height_lock": locked}
+    save_settings(settings)
+    
+    frame = None
+    if habitat_controller:
+        with habitat_lock:
+            frame = habitat_controller.set_height_offset(clamped_height)
+    
+    return {
+        "status": "success", 
+        "message": f"Height updated to {clamped_height}m", 
+        "locked": locked,
+        "frame": frame
+    }
+
+@app.get("/get_settings")
+async def get_settings_endpoint():
+    return load_settings()
 
 @app.post("/generate_video")
 async def generate_video(

@@ -73,6 +73,9 @@ class HabitatController:
             "look_down_30": habitat_sim.agent.ActionSpec(
                 "look_down", habitat_sim.agent.ActuationSpec(amount=30.0)
             ),
+            "refresh": habitat_sim.agent.ActionSpec(
+                "move_forward", habitat_sim.agent.ActuationSpec(amount=0.0)
+            ),
         }
         
         # Combine into a single Configuration object
@@ -94,10 +97,21 @@ class HabitatController:
         self.agent = self.sim.initialize_agent(0)
         
         self.collision_count = 0
+        self.height_offset = 0.0
         
         # Initial Agent State
         self.reset_agent()
         self.starter_position = self.agent.get_state().position
+        self._apply_height_offset()
+
+    def _apply_height_offset(self):
+        """Internal helper to ensure camera height is correct relative to the agent."""
+        clamped_offset = max(-1.2, min(1.0, self.height_offset))
+        self.height_offset = clamped_offset
+        sensor_node = self.agent.scene_node.node_sensor_suite.get("color_sensor").node
+        sensor_node.translation = np.array([0.0, 1.5 + clamped_offset, 0.0])
+        # Force a simulation step with 0 movement to refresh the visual sensors
+        self.agent.act("refresh")
 
     def spawn_starter(self):
         """Spawns the agent at the deterministic starter point."""
@@ -105,6 +119,7 @@ class HabitatController:
         agent_state.position = self.starter_position
         agent_state.rotation = np.array([0, 0, 0, 1.0])
         self.agent.set_state(agent_state)
+        self._apply_height_offset()
         return True, self.get_frame_as_base64()
 
     def reset_camera(self):
@@ -113,6 +128,7 @@ class HabitatController:
         # Identity rotation (looking forward, level)
         state.rotation = np.array([0, 0, 0, 1.0]) # [x, y, z, w]
         self.agent.set_state(state)
+        self._apply_height_offset()
         return self.get_frame_as_base64()
 
     def snap_to_floor(self):
@@ -123,6 +139,7 @@ class HabitatController:
             if not np.isnan(snapped).any():
                 state.position = snapped
                 self.agent.set_state(state)
+        self._apply_height_offset()
         return self.get_frame_as_base64()
 
     def reset_agent(self):
@@ -139,13 +156,22 @@ class HabitatController:
             print(f"Warning: Failed to find navigable point ({e}). Using default position.")
             # Fallback for HSSD scenes without NavMesh
             agent_state.position = np.array([0.0, 1.0, 0.0]) 
-            
-            
         self.agent.set_state(agent_state)
+
+    def set_height_offset(self, offset):
+        """Sets the vertical height offset and refreshes the view."""
+        self.height_offset = offset
+        self._apply_height_offset()
+        return self.get_frame_as_base64()
 
     def get_memory_string(self):
         """Returns the current state records for prompt injection."""
-        return " | ".join(self.memory) if self.memory else "None"
+        if len(self.memory) == 0:
+            return "\n1. None\n2. None"
+        elif len(self.memory) == 1:
+            return f"\n1. None\n2. {self.memory[0]}"
+        else:
+            return f"\n1. {self.memory[0]}\n2. {self.memory[1]}"
 
     def record_vlm_action(self, command, reasoning):
         """Updates the persistent memory with the latest AI decision."""
@@ -181,6 +207,9 @@ class HabitatController:
             
             if collided:
                 self.collision_count += 1
+            
+            # Re-apply height offset after movement
+            self._apply_height_offset()
         elif action == "interact":
             # Simple interaction stub
             print("Interact action triggered")
@@ -337,6 +366,7 @@ class HabitatController:
             # Reset rotation to look forward when spawning
             agent_state.rotation = np.array([0, 0, 0, 1.0])
             self.agent.set_state(agent_state)
+            self._apply_height_offset()
             
             return True, self.get_frame_as_base64()
             

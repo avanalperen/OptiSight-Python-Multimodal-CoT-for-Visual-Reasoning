@@ -533,14 +533,11 @@
         /* 3x3 Grid Overlay */
         .grid-overlay {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
             z-index: 35;
             display: none;
             pointer-events: none;
-            /* Let clicks pass through to video/photo/sim */
+            /* Allow positioning via JS */
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
         .grid-line-v {
@@ -596,17 +593,30 @@
             /* Shortened to fit grid checkbox */
         }
 
-        .grid-checkbox-container {
+        .grid-checkbox-container,
+        .height-checkbox-container {
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 6px;
             color: #ccc;
             font-size: 13px;
+            font-weight: bold;
             user-select: none;
             transition: opacity 0.2s;
+            padding: 3px 8px;
+            background: #333;
+            border-radius: 4px;
+            border: 1px solid #444;
         }
 
-        .grid-checkbox-container.dimmed {
+        .grid-checkbox-container input,
+        .height-checkbox-container input {
+            width: 16px;
+            height: 16px;
+        }
+
+        .grid-checkbox-container.dimmed,
+        .height-checkbox-container.dimmed {
             opacity: 0.3;
             pointer-events: none;
         }
@@ -651,8 +661,7 @@
 
             <div class="video-container">
                 <!-- 3x3 Grid Overlay -->
-                <div id="grid-overlay" class="grid-overlay"
-                    style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; z-index:45; pointer-events:none;">
+                <div id="grid-overlay" class="grid-overlay">
                     <div
                         style="position:absolute; left:33.33%; width:1px; height:100%; background:rgba(255,255,255,0.6);">
                     </div>
@@ -759,9 +768,14 @@
 
                     <button id="action-btn" onclick="handleAction()" style="display: none;"></button>
 
-                    <div class="checkbox-grid-container" id="grid-checkbox-container">
+                    <div class="grid-checkbox-container" id="grid-checkbox-container">
                         <input type="checkbox" id="grid-toggle-checkbox" onchange="toggleGrid()">
                         <label for="grid-toggle-checkbox">3x3 Grid</label>
+                    </div>
+
+                    <div class="height-checkbox-container" id="height-checkbox-container">
+                        <input type="checkbox" id="height-toggle-checkbox" onchange="toggleHeightControl()">
+                        <label for="height-toggle-checkbox" id="height-label">Height: 0.0m</label>
                     </div>
                 </div>
             </div>
@@ -775,6 +789,14 @@
                 <div class="checkbox-container">
                     <input type="checkbox" id="use-custom-prompt" onchange="togglePromptInput()">
                     <label for="use-custom-prompt" style="flex-grow:1;">Use Custom Prompt</label>
+
+                    <div id="memory-mode-container"
+                        style="display: flex; align-items: center; gap: 5px; margin-right: 15px;">
+                        <input type="checkbox" id="memory-mode-checkbox" checked>
+                        <label for="memory-mode-checkbox" style="font-size: 14px; margin: 0; cursor: pointer;">Memory
+                            Mode</label>
+                    </div>
+
                     <input type="file" id="prompt-file-input" accept=".txt,.md" style="display:none;"
                         onchange="loadPromptFromFile(this)">
                     <button id="btn-load-prompt" onclick="document.getElementById('prompt-file-input').click()">Load
@@ -960,16 +982,14 @@
         }
 
         function setMode(mode) {
-            cancelCurrentAnalysis(); // Cancel any pending operations
+            cancelCurrentAnalysis();
             currentMode = mode;
-            currentSourceName = ''; // Reset source name
-            console.log("Mode clicked:", mode);
+            currentSourceName = '';
 
-            // UI Updates
+            // 1. GLOBAL UI RESETS
             document.querySelectorAll('.mode-controls button').forEach(b => b.classList.remove('active'));
             document.getElementById(`btn-${mode}`).classList.add('active');
 
-            // Reset display
             video.style.display = 'none';
             photoDisplay.style.display = 'none';
             placeholder.style.display = 'block';
@@ -978,74 +998,58 @@
             video.src = "";
             photoDisplay.src = "";
 
-            // Clear file info texts and reset file inputs
             document.getElementById('photo-info').style.display = 'none';
-            document.getElementById('photo-info').textContent = '';
             document.getElementById('video-info').style.display = 'none';
-            document.getElementById('video-info').textContent = '';
             document.getElementById('sim-info').style.display = 'none';
-            document.getElementById('sim-info').textContent = '';
             document.getElementById('photo-upload').value = '';
             document.getElementById('video-upload').value = '';
 
-            // Stop any running stream
+            // Reset 3x3 Grid on every tab switch
+            document.getElementById('grid-toggle-checkbox').checked = false;
+            toggleGrid();
+
             stopStream();
             updateActionButton();
 
-            // Toggle Browse Areas
+            // 2. HABITAT SPECIFIC CLEANUP (Always run)
+            document.getElementById('habitat-selection-overlay').style.display = 'none';
+            document.getElementById('route-canvas').style.display = 'none';
+            const routeCanvas = document.getElementById('route-canvas');
+            if (routeCanvas) {
+                const ctx = routeCanvas.getContext('2d');
+                ctx.clearRect(0, 0, routeCanvas.width, routeCanvas.height);
+            }
+            const cc = document.getElementById('collision-counter');
+            if (cc) {
+                cc.textContent = "Collisions: 0";
+                cc.dataset.count = "0";
+                cc.style.display = 'none';
+            }
+
+            // 3. MODE-SPECIFIC SETUP
             document.getElementById('photo-browse-area').style.display = 'none';
             document.getElementById('video-browse-area').style.display = 'none';
             document.getElementById('sim-browse-area').style.display = 'none';
 
+            const fpsControl = document.getElementById('fps-control');
+            const heightControl = document.getElementById('height-checkbox-container');
+
             if (mode === 'photo') {
                 document.getElementById('photo-browse-area').style.display = 'flex';
+                fpsControl.style.display = 'none';
+                heightControl.style.display = 'none';
             } else if (mode === 'video') {
                 document.getElementById('video-browse-area').style.display = 'flex';
+                fpsControl.style.display = 'flex';
+                heightControl.style.display = 'none';
             } else if (mode === 'habitat') {
                 document.getElementById('sim-browse-area').style.display = 'flex';
-                // Show mode selection overlay ONLY IF NOT ALREADY INITIALIZED (optional, but good for UX)
-                // For now, let's show it when they click "AI Habitat Sim" tab to force a choice? 
-                // Or maybe just let them browse/upload first. 
-                // The user request says "reset to initial state", so we show overlay.
                 document.getElementById('habitat-selection-overlay').style.display = 'flex';
-
-                // Clear the collision counter
-                const cc = document.getElementById('collision-counter');
-                if (cc) {
-                    cc.textContent = "Collisions: 0";
-                    cc.dataset.count = "0";
-                    cc.style.display = 'none'; // Ensure hidden until Live Control begins
-                }
-            }
-
-            // FPS (Interval) visibility
-            const fpsControl = document.getElementById('fps-control');
-
-            // Habitat Specific Reset
-            document.getElementById('habitat-selection-overlay').style.display = 'none';
-            document.getElementById('route-canvas').style.display = 'none';
-            // Clear route canvas
-            const routeCanvas = document.getElementById('route-canvas');
-            const cw = routeCanvas.width; // Use internal width if set, or we set it later
-            const ch = routeCanvas.height;
-            const ctx = routeCanvas.getContext('2d');
-            ctx.clearRect(0, 0, cw, ch);
-
-            if (mode === 'photo') {
+                placeholder.textContent = "AI Habitat Interface";
                 fpsControl.style.display = 'none';
-            } else if (mode === 'video') {
-                fpsControl.style.display = 'flex';
-            } else {
-                // HABITAT MODE INITIAL STATE
-                fpsControl.style.display = 'none'; // Hidden until mode selected? Or always hidden for selection screen
-                document.getElementById('habitat-selection-overlay').style.display = 'flex';
-                placeholder.textContent = "AI Habitat Interface"; // Placeholder text behind overlay
-
-                // Hide browse button initially until sub-mode is selected?
-                // Request says: "Start Sim Analysis button's name and operation should be specific to this tab (Record Video)"
-                // But we first need to select the mode.
-                document.getElementById('sim-browse-area').style.display = 'none';
+                heightControl.style.display = 'flex';
             }
+            updateGridOverlay();
         }
 
         async function selectSim() {
@@ -1647,17 +1651,49 @@
             // Dimmed when no content (checks)
             const fpsControl = document.getElementById('fps-control');
             const gridControl = document.getElementById('grid-checkbox-container');
+            const heightControl = document.getElementById('height-checkbox-container');
+            const memoryModeControl = document.getElementById('memory-mode-container');
+
+            // Hide memory mode entirely if we are in 'photo' mode
+            if (memoryModeControl) {
+                if (currentMode === 'photo') {
+                    memoryModeControl.style.display = 'none';
+                } else {
+                    memoryModeControl.style.display = 'flex';
+                }
+            }
+
             // For Habitat Record mode, we need content (sim selected) AND we ignore isStreaming
             if (!hasContent) {
                 actionBtn.classList.add('btn-dimmed');
                 fpsControl.classList.add('btn-dimmed');
                 gridControl.classList.add('dimmed');
+                heightControl.classList.add('dimmed');
+                if (memoryModeControl) memoryModeControl.classList.add('btn-dimmed');
+
                 document.getElementById('grid-toggle-checkbox').disabled = true;
+                document.getElementById('height-toggle-checkbox').disabled = true;
+                const memModeCb = document.getElementById('memory-mode-checkbox');
+                if (memModeCb) memModeCb.disabled = true;
             } else {
                 actionBtn.classList.remove('btn-dimmed');
                 fpsControl.classList.remove('btn-dimmed');
                 gridControl.classList.remove('dimmed');
+                heightControl.classList.remove('dimmed');
+
                 document.getElementById('grid-toggle-checkbox').disabled = false;
+                document.getElementById('height-toggle-checkbox').disabled = false;
+
+                const isCustomPrompt = document.getElementById('use-custom-prompt').checked;
+                const memModeCb = document.getElementById('memory-mode-checkbox');
+
+                if (isCustomPrompt) {
+                    if (memoryModeControl) memoryModeControl.classList.remove('btn-dimmed');
+                    if (memModeCb) memModeCb.disabled = false;
+                } else {
+                    if (memoryModeControl) memoryModeControl.classList.add('btn-dimmed');
+                    if (memModeCb) memModeCb.disabled = true;
+                }
             }
         }
 
@@ -1665,7 +1701,145 @@
             const isChecked = document.getElementById('grid-toggle-checkbox').checked;
             const gridOverlay = document.getElementById('grid-overlay');
             gridOverlay.style.display = isChecked ? 'block' : 'none';
+            if (isChecked) updateGridOverlay();
         }
+
+        function updateGridOverlay() {
+            const gridOverlay = document.getElementById('grid-overlay');
+            if (gridOverlay.style.display === 'none') return;
+
+            let activeEl = null;
+            if (currentMode === 'photo' || currentMode === 'habitat') {
+                activeEl = photoDisplay;
+            } else if (currentMode === 'video') {
+                activeEl = video;
+            }
+
+            if (!activeEl || activeEl.offsetParent === null) return;
+
+            // Calculate the actual content box within the 'object-fit: contain' container
+            const containerWidth = activeEl.clientWidth;
+            const containerHeight = activeEl.clientHeight;
+
+            let contentWidth, contentHeight;
+            let intrinsicWidth, intrinsicHeight;
+
+            if (activeEl.tagName === 'IMG') {
+                intrinsicWidth = activeEl.naturalWidth;
+                intrinsicHeight = activeEl.naturalHeight;
+            } else {
+                intrinsicWidth = activeEl.videoWidth;
+                intrinsicHeight = activeEl.videoHeight;
+            }
+
+            if (!intrinsicWidth || !intrinsicHeight) return;
+
+            const containerRatio = containerWidth / containerHeight;
+            const contentRatio = intrinsicWidth / intrinsicHeight;
+
+            if (containerRatio > contentRatio) {
+                contentHeight = containerHeight;
+                contentWidth = containerHeight * contentRatio;
+            } else {
+                contentWidth = containerWidth;
+                contentHeight = containerWidth / contentRatio;
+            }
+
+            const left = (containerWidth - contentWidth) / 2;
+            const top = (containerHeight - contentHeight) / 2;
+
+            gridOverlay.style.width = `${contentWidth}px`;
+            gridOverlay.style.height = `${contentHeight}px`;
+            gridOverlay.style.left = `${activeEl.offsetLeft + left}px`;
+            gridOverlay.style.top = `${activeEl.offsetTop + top}px`;
+        }
+
+        window.addEventListener('resize', updateGridOverlay);
+        video.addEventListener('loadedmetadata', updateGridOverlay);
+        photoDisplay.addEventListener('load', updateGridOverlay);
+
+        let currentHeightOffset = 0.0;
+        let isHeightLocked = false;
+
+        async function loadHeightSettings() {
+            try {
+                const res = await fetch('/get_settings');
+                const data = await res.json();
+                currentHeightOffset = data.height || 0.0;
+                const checkbox = document.getElementById('height-toggle-checkbox');
+                checkbox.checked = data.height_lock || false;
+                updateHeightLabel();
+            } catch (e) { }
+        }
+
+        function updateHeightLabel() {
+            document.getElementById('height-label').textContent = `Height: ${currentHeightOffset.toFixed(1)}m`;
+        }
+
+        function toggleHeightControl() {
+            const isChecked = document.getElementById('height-toggle-checkbox').checked;
+            isHeightLocked = isChecked;
+            saveHeightSettings();
+        }
+
+        let isUpdatingHeight = false;
+        async function saveHeightSettings() {
+            if (isUpdatingHeight) return;
+            isUpdatingHeight = true;
+
+            const formData = new FormData();
+            formData.append('height', currentHeightOffset);
+            formData.append('locked', document.getElementById('height-toggle-checkbox').checked);
+
+            try {
+                const res = await fetch('/update_height', { method: 'POST', body: formData });
+                const data = await res.json();
+
+                if (data.status === 'success' && data.frame) {
+                    photoDisplay.src = "data:image/jpeg;base64," + data.frame;
+                    photoDisplay.style.display = 'block';
+                    placeholder.style.display = 'none';
+                    updateGridOverlay();
+                    console.log("Height updated visually:", data.message);
+                }
+            } catch (e) {
+                console.error("Failed to update height:", e);
+            } finally {
+                isUpdatingHeight = false;
+            }
+        }
+
+        window.addEventListener('keydown', function (e) {
+            if (!document.getElementById('height-toggle-checkbox').checked) return;
+            if (currentMode !== 'habitat') return; // Only in habitat mode
+
+            const isNumLockOn = e.getModifierState("NumLock");
+            if (!isNumLockOn) return;
+
+            let changed = false;
+            // Numpad 2 (Down), Numpad 8 (Up)
+            if (e.code === "Numpad2") {
+                currentHeightOffset -= 0.1;
+                changed = true;
+            } else if (e.code === "Numpad8") {
+                currentHeightOffset += 0.1;
+                changed = true;
+            }
+
+            if (changed) {
+                e.preventDefault();
+                // Clamp between -1.2m and 1.0m (updated max to 1.0m)
+                currentHeightOffset = Math.max(-1.2, Math.min(1.0, currentHeightOffset));
+                updateHeightLabel();
+                // Use a small delay/debounce if they hold the key? 
+                // For now, saveHeightSettings has its own lock.
+                saveHeightSettings();
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', function () {
+            loadHeightSettings();
+        });
 
         async function getProcessedBlob(originalBlob) {
             const isGridEnabled = document.getElementById('grid-toggle-checkbox').checked;
@@ -1849,6 +2023,7 @@
         function updateButtonStates() {
             const resultEmpty = resultDisplay.textContent.trim() === 'Waiting for input...' || resultDisplay.textContent.trim() === '';
             const promptEmpty = !promptInput.value || promptInput.value.trim() === '';
+            const isCustomPrompt = document.getElementById('use-custom-prompt').checked;
 
             // Clear button
             const clearBtn = document.getElementById('btn-clear-result');
@@ -1864,7 +2039,7 @@
 
             // Save Prompt button
             const savePromptBtn = document.getElementById('btn-save-prompt');
-            if (promptEmpty || !document.getElementById('use-custom-prompt').checked) {
+            if (promptEmpty || !isCustomPrompt) {
                 savePromptBtn.classList.add('btn-dimmed');
             } else {
                 savePromptBtn.classList.remove('btn-dimmed');
@@ -1872,10 +2047,29 @@
 
             // Load Prompt button
             const loadPromptBtn = document.getElementById('btn-load-prompt');
-            if (!document.getElementById('use-custom-prompt').checked) {
+            if (!isCustomPrompt) {
                 loadPromptBtn.classList.add('btn-dimmed');
             } else {
                 loadPromptBtn.classList.remove('btn-dimmed');
+            }
+
+            // Memory Mode
+            const memModeContainer = document.getElementById('memory-mode-container');
+            const memModeCheckbox = document.getElementById('memory-mode-checkbox');
+            if (!isCustomPrompt) {
+                if (memModeContainer) memModeContainer.classList.add('btn-dimmed');
+                if (memModeCheckbox) memModeCheckbox.disabled = true;
+            } else {
+                // We let updateActionButton handle the final 'hasContent' disable logic
+                // but at a baseline, it's enabled here if custom prompt is on
+                if (memModeContainer) memModeContainer.classList.remove('btn-dimmed');
+                if (memModeCheckbox) memModeCheckbox.disabled = false;
+
+                // Re-apply content check if it exists so we don't accidentally enable it when we shouldn't
+                if (typeof updateActionButton === 'function') {
+                    // Slight delay or direct check - but action button relies on globals so it's safe to just call
+                    updateActionButton();
+                }
             }
         }
 
@@ -1911,6 +2105,11 @@
             formData.append('file', fileBlob, 'image.jpg');
             formData.append('prompt', getCurrentPrompt());
             formData.append('device_choice', selectedDevice);
+
+            // Append Memory Mode choice
+            const isMemoryModeEnabled = document.getElementById('memory-mode-checkbox').checked;
+            formData.append('memory_mode', isMemoryModeEnabled);
+
             if (selectedModel) {
                 formData.append('model_choice', selectedModel);
             }
@@ -1918,7 +2117,7 @@
                 formData.append('habitat_submode', habitatSubMode);
             }
 
-            logDebug(`Starting analysis [Device: ${selectedDevice}]...`);
+            logDebug(`Starting analysis [Device: ${selectedDevice}, Memory Mode: ${isMemoryModeEnabled}]...`);
 
             // Check if there's an existing controller (e.g. from same mode double-click? though buttons usually disabled/hidden or logic prevents. But safe to replace). 
             // Actually user logic said "tab switch". But cancelling previous on new start is also good practice.
@@ -1950,11 +2149,44 @@
                     lastDebugLog = resultDisplay.innerText;
                     updateButtonStates();
 
+                    // Extract Memory block if present
+                    let memoryBlockHTML = "";
+                    let mainResponse = data.response;
+
+                    if (isMemoryModeEnabled && mainResponse.includes("Memory:\n")) {
+                        // Split the response to extract the memory block
+                        const parts = mainResponse.split("\n\nObservation:");
+                        if (parts.length > 1) {
+                            const memoryText = parts[0].trim();
+                            mainResponse = "Observation:" + parts[1]; // Restore the rest of the output
+
+                            // Escape just the memory part
+                            const escapedMemory = memoryText
+                                .replace(/&/g, "&amp;")
+                                .replace(/</g, "&lt;")
+                                .replace(/>/g, "&gt;");
+
+                            memoryBlockHTML = `
+                                <div style="background: #2b2b2b; padding: 15px; border-left: 6px solid #e6a822; margin: 15px 0 0 0; border-bottom: 2px dashed #444;">
+                                    <div style="color:#e6a822; font-weight:bold; font-size: 16px; margin-bottom:8px; text-transform: uppercase;">[Context] Memory Injected for this Prompt:</div>
+                                    <div style="font-size: 16px; line-height: 1.5; color: #ddd; white-space: pre-wrap; font-family: 'Consolas', monospace;">${escapedMemory}</div>
+                                </div>
+                            `;
+                        }
+                    }
+
+                    // Escape HTML characters for the main response so tags like <cmd> are displayed as text
+                    const escapedResponse = mainResponse
+                        .replace(/&/g, "&amp;")
+                        .replace(/</g, "&lt;")
+                        .replace(/>/g, "&gt;");
+
                     const timestamp = new Date().toLocaleTimeString();
                     const finalResult = `
-                        <div style="background: #333; padding: 20px; border-left: 6px solid #007acc; margin: 15px 0;">
+                        ${memoryBlockHTML}
+                        <div style="background: #333; padding: 20px; border-left: 6px solid #007acc; margin: ${memoryBlockHTML ? '0 0 15px 0' : '15px 0'};">
                             <div style="color:#569cd6; font-weight:bold; font-size: 20px; margin-bottom:10px;">[${timestamp}] RESULT:</div>
-                            <div style="margin-bottom:15px; font-size: 19px; line-height: 1.6;">${data.response}</div>
+                            <div style="margin-bottom:15px; font-size: 19px; line-height: 1.6; white-space: pre-wrap;">${escapedResponse}</div>
                             <div style="border-top: 1px solid #555; padding-top: 12px; font-size: 16px; font-family: 'Consolas', monospace; color: #aaa;">
                                 <div style="display:flex; justify-content:space-between; margin-bottom: 5px;">
                                     <span style="color: #4ec9b0; font-weight: bold;">Model: ${data.debug?.model_choice || 'Unknown'} | Device: ${data.debug?.device || 'Unknown'}</span>
