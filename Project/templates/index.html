@@ -339,6 +339,8 @@
             margin-bottom: 20px;
             display: flex;
             flex-direction: column;
+            flex: 1;
+            /* 25% */
         }
 
         .section label {
@@ -365,6 +367,8 @@
             opacity: 0.5;
             /* Dimmed by default */
             transition: opacity 0.3s;
+            width: 100%;
+            box-sizing: border-box;
         }
 
         textarea.active {
@@ -374,7 +378,8 @@
         }
 
         .result-section {
-            flex-grow: 1;
+            flex: 3;
+            /* 75% */
             display: flex;
             flex-direction: column;
             overflow: hidden;
@@ -620,6 +625,187 @@
             opacity: 0.3;
             pointer-events: none;
         }
+
+        /* TAB CSS */
+        .tab-header {
+            display: flex;
+            border-bottom: 1px solid #444;
+            margin-bottom: 15px;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            color: #888;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .tab-btn:hover {
+            color: #ddd;
+        }
+
+        .tab-btn.active {
+            color: #4ec9b0;
+            border-bottom: 2px solid #007acc;
+        }
+
+        .tab-content {
+            display: none;
+            flex-direction: column;
+            flex: 1;
+        }
+
+        .tab-content.active {
+            display: flex;
+        }
+
+        .prompt-tab {
+            padding: 8px 15px;
+            background: transparent;
+            border: none;
+            color: #aaa;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: bold;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .prompt-tab:hover {
+            color: #eee;
+        }
+
+        .prompt-tab.active {
+            color: #007acc;
+            border-bottom: 2px solid #007acc;
+        }
+
+        .scenario-tab {
+            padding: 10px 20px;
+            background: #252526;
+            border: 1px solid #333;
+            border-bottom: none;
+            color: #888;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: bold;
+            border-radius: 6px 6px 0 0;
+            transition: all 0.2s;
+        }
+
+        .scenario-tab:hover {
+            background: #2d2d2d;
+            color: #ccc;
+        }
+
+        .scenario-tab.active {
+            background: #1e1e1e;
+            color: #4ec9b0;
+            border-top: 2px solid #4ec9b0;
+        }
+
+        /* Visual State Flow */
+        .state-flow-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            background: #252526;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+
+        .state-node {
+            width: 100%;
+            padding: 12px;
+            background: #2d2d2d;
+            border: 1px solid #444;
+            border-radius: 6px;
+            color: #888;
+            font-size: 14px;
+            font-weight: bold;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .state-node:hover {
+            background: #3a3a3a;
+            color: #ccc;
+            border-color: #555;
+        }
+
+        .state-node.active {
+            background: rgba(0, 122, 204, 0.2);
+            border-color: #007acc;
+            color: #007acc;
+            box-shadow: 0 0 15px rgba(0, 122, 204, 0.4);
+        }
+
+        .state-node.node-start {
+            background: rgba(78, 201, 176, 0.05);
+            border-style: dashed;
+            color: #4ec9b0;
+            cursor: default;
+            opacity: 0.8;
+        }
+
+        .state-node.node-end {
+            background: rgba(224, 108, 117, 0.05);
+            border-style: dotted;
+            color: #e06c75;
+            cursor: default;
+            opacity: 0.8;
+        }
+
+        .state-node.node-start:hover,
+        .state-node.node-end:hover {
+            border-color: #555;
+        }
+
+        .flow-arrow {
+            color: #666;
+            font-size: 32px;
+            font-weight: bold;
+            line-height: 1;
+            margin: 8px 0;
+            transition: all 0.3s ease;
+        }
+
+        .flow-arrow.double-arrow {
+            font-size: 36px;
+            margin: 0 10px;
+            color: #777;
+        }
+
+        .flow-row {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            gap: 25px;
+            margin: 10px 0;
+        }
+
+        .flow-col-main {
+            flex: 1.5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .flow-col-side {
+            flex: 1;
+            display: flex;
+            align-items: center;
+        }
     </style>
 </head>
 
@@ -660,6 +846,24 @@
             </div>
 
             <div class="video-container">
+                <!-- Autonomous CoT Top-Left Overlay -->
+                <div id="cot-overlay"
+                    style="position: absolute; top: 10px; left: 10px; width: 380px; background: rgba(15, 15, 20, 0.9); border: 1px solid #007acc; border-radius: 12px; padding: 20px; z-index: 2000; box-shadow: 0 8px 32px rgba(0,0,0,0.8); display: none; color: #eee; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-height: 80%; overflow-y: auto; text-align: left; backdrop-filter: blur(10px); transition: all 0.3s ease;">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; padding-bottom: 12px; margin-bottom: 15px;">
+                        <div
+                            style="font-weight: bold; color: #4ec9b0; font-size: 18px; display: flex; align-items: center; gap: 8px;">
+                            <span>🧠</span> OptiSight CoT
+                        </div>
+                        <div id="cot-state"
+                            style="background: #007acc; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; box-shadow: 0 2px 8px rgba(0,122,204,0.4);">
+                            RUNNING</div>
+                    </div>
+                    <div id="cot-content"
+                        style="font-size: 14px; line-height: 1.6; color: #dcdcaa; white-space: pre-wrap; font-family: 'Consolas', 'Monaco', monospace;">
+                    </div>
+                </div>
+
                 <!-- 3x3 Grid Overlay -->
                 <div id="grid-overlay" class="grid-overlay">
                     <div
@@ -730,6 +934,130 @@
                         onclick="document.getElementById('model-selection-overlay').style.display='none'">Cancel</button>
                 </div>
 
+                <!-- Autonomous Navigator Modal (Full Screen) -->
+                <div id="autonav-modal"
+                    style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: #1e1e1e; z-index: 9999; flex-direction: column; text-align: left; padding: 40px; box-sizing: border-box;">
+                    <h2
+                        style="color: white; margin-top: 0; border-bottom: 1px solid #333; padding-bottom: 20px; display: flex; align-items: center; gap: 10px; font-size: 24px;">
+                        OptiSight CoT Navigation Settings</h2>
+
+                    <div style="display: flex; gap: 40px; flex: 1; min-height: 0; margin-top: 20px;">
+                        <!-- Left Column: Settings -->
+                        <div
+                            style="flex: 1; display: flex; flex-direction: column; border-right: 1px solid #333; padding-right: 20px;">
+                            <p style="color: #bbb; font-size: 14px; margin-bottom: 20px; line-height: 1.5;">
+                                <b>Guide:</b> Set the natural language Goal for the OptiSight Core. The agent will
+                                assess path availability, remember past actions, and reason out the next step
+                                autonomously.
+                            </p>
+
+                            <label
+                                style="color: #9cdcfe; font-weight: bold; display: block; margin-bottom: 5px;">Current
+                                Goal</label>
+                            <input type="text" id="autonav-target" value="Go Through the door"
+                                style="width: calc(100% - 24px); padding: 12px; margin-bottom: 20px; background: #2d2d2d; color: white; border: 1px solid #555; font-size: 15px; border-radius: 6px;">
+
+                            <label
+                                style="color: #9cdcfe; font-weight: bold; display: block; margin-bottom: 5px;">Initial
+                                State Progression</label>
+
+                            <!-- Scenario Tab Header for Flow -->
+                            <div
+                                style="display: flex; gap: 5px; background: #1a1a1a; padding: 5px; border-radius: 6px 6px 0 0; border: 1px solid #333; border-bottom: none;">
+                                <div
+                                    style="padding: 8px 15px; background: #1e1e1e; color: #4ec9b0; border-top: 2px solid #4ec9b0; font-size: 12px; font-weight: bold; border-radius: 4px 4px 0 0;">
+                                    Scenario 1</div>
+                            </div>
+
+                            <div class="state-flow-container"
+                                style="border-top-left-radius: 0; display: block; padding: 25px;">
+                                <!-- Start node spans full width but centered logically in main col -->
+                                <div style="display: flex; flex-direction: column; align-items: center;">
+                                    <div id="flow-node-start" class="state-node node-start" style="max-width: 80%;">
+                                        START (Beginning of Simulation)</div>
+                                    <div class="flow-arrow">↓</div>
+
+                                    <div id="flow-node-searching" class="state-node active" style="max-width: 80%;"
+                                        onclick="switchCoTPromptTab('searching')">1. SEARCHING (Looking for Goal)</div>
+                                    <div class="flow-arrow">↓</div>
+                                </div>
+
+                                <!-- Horizontal Branch Row -->
+                                <div class="flow-row">
+                                    <div class="flow-col-main">
+                                        <div id="flow-node-navigating" class="state-node"
+                                            onclick="switchCoTPromptTab('navigating')">2. NAVIGATING (Goal in Sight)
+                                        </div>
+                                    </div>
+                                    <div class="flow-arrow double-arrow">↔</div>
+                                    <div class="flow-col-side">
+                                        <div id="flow-node-recovering" class="state-node"
+                                            onclick="switchCoTPromptTab('recovering')">RECOVERING (Collision Recovery)
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- End node stems from Navigating col -->
+                                <div class="flow-row">
+                                    <div class="flow-col-main">
+                                        <div class="flow-arrow">↓</div>
+                                        <div id="flow-node-end" class="state-node node-end">END (Task Completed)</div>
+                                    </div>
+                                    <div style="flex: 1.2;"></div> <!-- Space to skip recovery column -->
+                                </div>
+                            </div>
+                            <input type="hidden" id="autonav-initial-state" value="SEARCHING">
+                        </div>
+
+                        <!-- Right Column: Scenario & Prompt Tabs -->
+                        <div style="flex: 1; display: flex; flex-direction: column; overflow-y: hidden;">
+                            <!-- Scenario Selection Tabs -->
+                            <div
+                                style="display: flex; gap: 5px; margin-bottom: 5px; background: #1a1a1a; padding: 5px; border-radius: 6px 6px 0 0;">
+                                <button class="scenario-tab active" onclick="switchScenario('scenario1')">Scenario
+                                    1</button>
+                            </div>
+
+                            <div
+                                style="border: 1px solid #333; border-top: none; padding: 15px; flex: 1; display: flex; flex-direction: column; border-radius: 0 0 6px 6px;">
+                                <div
+                                    style="display: flex; gap: 5px; margin-bottom: 15px; border-bottom: 1px solid #333;">
+                                    <button class="prompt-tab active" onclick="switchCoTPromptTab('core')">Core</button>
+                                    <button class="prompt-tab"
+                                        onclick="switchCoTPromptTab('searching')">Searching</button>
+                                    <button class="prompt-tab"
+                                        onclick="switchCoTPromptTab('navigating')">Navigating</button>
+                                    <button class="prompt-tab"
+                                        onclick="switchCoTPromptTab('recovering')">Recovering</button>
+                                </div>
+
+                                <div id="prompt-container" style="flex: 1; display: flex; flex-direction: column;">
+                                    <textarea id="autonav-prompt-editor"
+                                        style="flex: 1; min-height: 250px; background: #2d2d2d; color: #dcdcaa; padding: 12px; font-family: 'Consolas', monospace; font-size: 14px; border: 1px solid #555; border-radius: 6px; overflow-y: auto;"></textarea>
+                                </div>
+
+                                <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
+                                    <button
+                                        style="padding: 8px 16px; background: #007acc; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold;"
+                                        onclick="saveActivePromptTab()">Save Prompt</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div
+                        style="display: flex; justify-content: flex-end; gap: 15px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #333;">
+                        <button
+                            style="padding: 12px 30px; font-size: 16px; font-weight: bold; color: #ddd; background: #333; border: 1px solid #555; border-radius: 6px; cursor: pointer;"
+                            onclick="document.getElementById('autonav-modal').style.display='none'">Cancel</button>
+                        <button
+                            style="padding: 12px 30px; font-size: 16px; font-weight: bold; color: white; background: #007acc; border: none; border-radius: 6px; cursor: pointer;"
+                            onclick="saveActivePromptToMemory(); syncScenariosToServer(); document.getElementById('autonav-modal').style.display='none'">Save
+                            &
+                            Apply</button>
+                    </div>
+                </div>
+
                 <div id="placeholder-text" style="color: #666;">Select a Source</div>
             </div>
 
@@ -782,26 +1110,58 @@
         </div>
 
         <div class="right-panel">
-            <div class="section">
-                <label>Prompt Settings</label>
-                <textarea id="prompt-input"
-                    disabled>Analyze the scene and decide the next action. Previous memory: {PREVIOUS_MEMORY}. Provide reasoning and command in <cmd>COMMAND</cmd> format.</textarea>
-                <div class="checkbox-container">
-                    <input type="checkbox" id="use-custom-prompt" onchange="togglePromptInput()">
-                    <label for="use-custom-prompt" style="flex-grow:1;">Use Custom Prompt</label>
+            <div class="section" id="prompt-section">
+                <!-- Static Header for Non-Habitat Modes -->
+                <div id="prompt-settings-header"
+                    style="display:flex; justify-content:space-between; align-items:center; display:none;">
+                    <label style="margin-bottom:0;">Prompt Settings</label>
+                </div>
+                <!-- Tab Headers -->
+                <div class="tab-header" id="habitat-tab-header">
+                    <button id="tab-btn-manual" class="tab-btn active" onclick="switchPromptTab('manual')">Manual Prompt
+                        Settings</button>
+                    <button id="tab-btn-auto" class="tab-btn" onclick="switchPromptTab('auto')">OptiSight CoT
+                        Navigator</button>
+                </div>
 
-                    <div id="memory-mode-container"
-                        style="display: flex; align-items: center; gap: 5px; margin-right: 15px;">
-                        <input type="checkbox" id="memory-mode-checkbox" checked>
-                        <label for="memory-mode-checkbox" style="font-size: 14px; margin: 0; cursor: pointer;">Memory
-                            Mode</label>
+                <!-- Tab 1: Manual Prompt Settings -->
+                <div id="tab-manual" class="tab-content active">
+                    <textarea id="prompt-input" style="margin-top: 8px;"
+                        disabled>Analyze the scene and decide the next action. Previous memory: {PREVIOUS_MEMORY}. Provide reasoning and command in <cmd>COMMAND</cmd> format.</textarea>
+
+                    <div class="checkbox-container">
+                        <input type="checkbox" id="use-custom-prompt" onchange="togglePromptInput()">
+                        <label for="use-custom-prompt" style="flex-grow:1;">Use Custom Prompt</label>
+
+                        <div id="memory-mode-container"
+                            style="display: flex; align-items: center; gap: 5px; margin-right: 15px;">
+                            <input type="checkbox" id="memory-mode-checkbox" checked>
+                            <label for="memory-mode-checkbox"
+                                style="font-size: 14px; margin: 0; cursor: pointer;">Memory Mode</label>
+                        </div>
+
+                        <input type="file" id="prompt-file-input" accept=".txt,.md" style="display:none;"
+                            onchange="loadPromptFromFile(this)">
+                        <button id="btn-load-prompt" onclick="document.getElementById('prompt-file-input').click()">Load
+                            Prompt</button>
+                        <button id="btn-save-prompt" onclick="savePrompt()">Save Prompt</button>
                     </div>
+                </div>
 
-                    <input type="file" id="prompt-file-input" accept=".txt,.md" style="display:none;"
-                        onchange="loadPromptFromFile(this)">
-                    <button id="btn-load-prompt" onclick="document.getElementById('prompt-file-input').click()">Load
-                        Prompt</button>
-                    <button id="btn-save-prompt" onclick="savePrompt()">Save Prompt</button>
+                <!-- Tab 2: OptiSight CoT Navigator Settings -->
+                <div id="tab-auto" class="tab-content">
+                    <div
+                        style="background: #252526; padding: 15px; border-radius: 6px; border: 1px solid #444; text-align: left; margin-bottom: 10px;">
+                        <h3 style="color: #4ec9b0; margin-top: 0; margin-bottom: 10px;">OptiSight Core Active</h3>
+                        <p style="color: #bbb; font-size: 13px; line-height: 1.5; margin-bottom: 15px;">
+                            The system will utilize advanced Chain-of-Thought reasoning to accomplish real-time physical
+                            navigation objectives.
+                        </p>
+                        <button onclick="openAutoNavModal()"
+                            style="padding: 10px 20px; font-size: 14px; font-weight: bold; color: white; background: #007acc; border: none; border-radius: 4px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
+                            Configure OptiSight CoT Navigation
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -870,6 +1230,165 @@
 
         const BASE_PROMPT = "Describe this image";
 
+        // Hierarchical Scenario & Prompt Management
+        let currentScenario = 'scenario1';
+        let currentPromptTab = 'core';
+
+        // Data structure: scenarios[scenarioId][promptType]
+        let scenarios = {
+            'scenario1': {
+                'core': "",
+                'searching': "",
+                'navigating': "",
+                'recovering': ""
+            }
+        };
+
+        function switchScenario(scenarioId) {
+            saveActivePromptToMemory();
+            currentScenario = scenarioId;
+
+            // UI Update for Scenario Tabs
+            document.querySelectorAll('.scenario-tab').forEach(btn => {
+                btn.classList.toggle('active', btn.textContent.toLowerCase().includes(scenarioId.replace('scenario', '')));
+            });
+
+            // Load the prompt for the active tab in this scenario
+            loadActivePromptFromMemory();
+        }
+
+        function switchCoTPromptTab(tab, skipSave = false) {
+            if (!skipSave) {
+                saveActivePromptToMemory();
+            }
+
+            currentPromptTab = tab;
+
+            // UI Update for Prompt Tabs
+            document.querySelectorAll('.prompt-tab').forEach(btn => {
+                btn.classList.toggle('active', btn.textContent.toLowerCase() === tab);
+            });
+
+            // UI Update for Visual Flow Nodes
+            document.querySelectorAll('.state-node').forEach(node => {
+                node.classList.remove('active');
+            });
+            const flowNode = document.getElementById(`flow-node-${tab}`);
+            if (flowNode) {
+                flowNode.classList.add('active');
+            }
+
+            loadActivePromptFromMemory();
+        }
+
+        function loadActivePromptFromMemory() {
+            const value = scenarios[currentScenario][currentPromptTab] || "";
+            document.getElementById('autonav-prompt-editor').value = value;
+        }
+
+        function saveActivePromptToMemory() {
+            const editor = document.getElementById('autonav-prompt-editor');
+            if (!editor) return;
+            const val = editor.value;
+            if (!scenarios[currentScenario]) scenarios[currentScenario] = {};
+            scenarios[currentScenario][currentPromptTab] = val;
+        }
+
+        function saveActivePromptTab() {
+            saveActivePromptToMemory();
+            syncScenariosToServer();
+            alert(`Prompt for ${currentScenario.toUpperCase()} - ${currentPromptTab.toUpperCase()} saved persistently.`);
+        }
+
+        async function syncScenariosToServer() {
+            try {
+                await fetch('/save_scenarios', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(scenarios)
+                });
+                console.log("Scenarios synced to server.");
+            } catch (e) {
+                console.error("Failed to sync scenarios:", e);
+            }
+        }
+
+        async function loadScenariosFromServer() {
+            try {
+                const res = await fetch('/get_scenarios');
+                const data = await res.json();
+                if (data && typeof data === 'object') {
+                    // Merge with defaults to ensure all keys exist
+                    scenarios = { ...scenarios, ...data };
+                    console.log("Scenarios loaded from server.");
+                    loadActivePromptFromMemory();
+                }
+            } catch (e) {
+                console.error("Failed to load scenarios:", e);
+            }
+        }
+
+        function openAutoNavModal() {
+            if (!scenarios['scenario1']) {
+                scenarios['scenario1'] = { core: "", searching: "", navigating: "", recovering: "" };
+            }
+            const s1 = scenarios['scenario1'];
+
+            // Populate defaults if empty (first time)
+            if (!s1.core) {
+                s1.core = `You are the OptiSight Visual Reasoning Core.
+GOAL: {goal}
+MEMORY: {memory}
+
+CRITICAL RULES:
+1. Think step-by-step (CoT).
+2. Output format: Observation, Goal_Check, Plan, Reasoning, <cmd>COMMAND</cmd>.
+3. Common Commands: <cmd>Go Ahead</cmd>, <cmd>Turn Left</cmd>, <cmd>Turn Right</cmd>, <cmd>Turn Back</cmd>, <cmd>Task Completed</cmd>.`;
+            }
+
+            if (!s1.searching) {
+                s1.searching = `STATE: SEARCHING (Looking for {goal})
+[INSTRUCTIONS]
+Scan the room. If {goal} is not visible, move forward or turn to explore.
+
+Example:
+Observation: Hallway clear, no door yet.
+Goal_Check: NO
+Plan: 1. Move forward to the end of the hall. 2. Turn right to peek into next room.
+Reasoning: I need to explore further to locate the target.
+<cmd>Go Ahead</cmd>`;
+            }
+
+            if (!s1.navigating) {
+                s1.navigating = `STATE: NAVIGATING (Goal in Sight)
+[INSTRUCTIONS]
+The {goal} is visible. Direct all efforts to reach it while avoiding collisions.
+
+Example:
+Observation: The door is 3 meters ahead, slightly to the left.
+Goal_Check: YES
+Plan: 1. Adjust 15 degrees left. 2. Move forward through the center.
+Reasoning: The goal is spotted, I will now navigate towards it.
+<cmd>Go Ahead</cmd>`;
+            }
+
+            if (!s1.recovering) {
+                s1.recovering = `STATE: RECOVERING (Collision/Blocked)
+[INSTRUCTIONS]
+You just hit an obstacle. You MUST back away or turn significantly to clear your path.
+
+Example:
+Observation: Stuck against a wall, viewing a blank surface.
+Goal_Check: YES (Target behind me)
+Plan: 1. Back up 0.5 meters. 2. Turn 180 degrees to face the room.
+Reasoning: I am stuck and need to move back to regain a navigable path.
+<cmd>Turn Back</cmd>`;
+            }
+
+            switchCoTPromptTab(currentPromptTab, true);
+            document.getElementById('autonav-modal').style.display = 'flex';
+        }
+
         function setDevice(device) {
             if (device === 'cpu' && selectedDevice !== 'cpu') {
                 const confirmMessage = "Do you want to continue?\n\nWARNING : IT CAN COLLAPSE YOUR SYSTEM";
@@ -885,6 +1404,22 @@
             // If device changes and model was loaded, it will be reloaded on next analysis or manual load
             // For simplicity, we just reset the button state
             resetLoadButton();
+        }
+
+        // Tab Switching Logic
+        let activePromptTab = 'manual';
+        function switchPromptTab(tabId) {
+            activePromptTab = tabId;
+            document.getElementById('tab-btn-manual').classList.remove('active');
+            document.getElementById('tab-btn-auto').classList.remove('active');
+            document.getElementById('tab-manual').classList.remove('active');
+            document.getElementById('tab-auto').classList.remove('active');
+
+            document.getElementById('tab-btn-' + tabId).classList.add('active');
+            document.getElementById('tab-' + tabId).classList.add('active');
+
+            // Re-eval action button state to update text
+            updateActionButton();
         }
 
         function resetLoadButton() {
@@ -985,6 +1520,7 @@
             cancelCurrentAnalysis();
             currentMode = mode;
             currentSourceName = '';
+            habitatSubMode = null;
 
             // 1. GLOBAL UI RESETS
             document.querySelectorAll('.mode-controls button').forEach(b => b.classList.remove('active'));
@@ -1278,7 +1814,7 @@
             const actionBtn = document.getElementById('action-btn');
 
             if (subMode === 'live' || subMode === 'autonomous') {
-                actionBtn.textContent = "Start Sim Analysis";
+                updateActionButton();
                 actionBtn.style.display = 'block';
                 actionBtn.onclick = handleAction; // Standard analysis loop
 
@@ -1614,21 +2150,54 @@
 
             actionBtn.style.display = 'block';
 
+            // Tab Management
+            const tabHeader = document.getElementById('habitat-tab-header');
+            const promptHeader = document.getElementById('prompt-settings-header');
+            const tabBtnAuto = document.getElementById('tab-btn-auto');
+            const tabBtnManual = document.getElementById('tab-btn-manual');
+
+            if (currentMode === 'habitat') {
+                tabHeader.style.display = 'flex';
+                promptHeader.style.display = 'none';
+
+                if (habitatSubMode === 'autonomous') {
+                    tabBtnManual.style.display = 'none';
+                    tabBtnAuto.style.display = 'inline-block';
+                    if (activePromptTab !== 'auto') {
+                        switchPromptTab('auto');
+                        return; // return because switchPromptTab calls updateActionButton
+                    }
+                } else {
+                    tabBtnManual.style.display = 'inline-block';
+                    tabBtnAuto.style.display = 'inline-block';
+                }
+            } else {
+                tabHeader.style.display = 'none';
+                promptHeader.style.display = 'flex';
+                if (activePromptTab === 'auto') {
+                    switchPromptTab('manual');
+                    return;
+                }
+            }
+
             if (currentMode === 'photo') {
                 actionBtn.textContent = "Analyze Photo";
                 actionBtn.style.backgroundColor = "rgba(0, 122, 204, 0.8)";
                 actionBtn.style.color = "white";
             } else if (currentMode === 'habitat') {
-                if (habitatSubMode === 'live' || habitatSubMode === 'autonomous') {
-                    if (isStreaming) {
-                        actionBtn.textContent = "Stop Analysis";
-                        actionBtn.style.backgroundColor = "rgba(204, 0, 0, 0.8)";
-                        actionBtn.style.color = "white";
+                if (isStreaming) {
+                    actionBtn.textContent = (activePromptTab === 'auto' || habitatSubMode === 'autonomous') ? "Stop Navigation" : "Stop Assistant";
+                    actionBtn.style.backgroundColor = "rgba(204, 0, 0, 0.8)";
+                    actionBtn.style.color = "white";
+                } else {
+                    if (habitatSubMode === 'autonomous') {
+                        actionBtn.textContent = "Start CoT Analysis";
                     } else {
-                        actionBtn.textContent = "Start Sim Analysis";
-                        actionBtn.style.backgroundColor = "rgba(230, 190, 0, 0.9)";
-                        actionBtn.style.color = "black";
+                        // Live Control or Initial State
+                        actionBtn.textContent = (activePromptTab === 'auto') ? "Start CoT Analysis" : "Start Sim Analysis";
                     }
+                    actionBtn.style.backgroundColor = "rgba(230, 190, 0, 0.9)";
+                    actionBtn.style.color = "black";
                 }
             } else if (currentMode === 'video') {
                 if (isStreaming) {
@@ -1877,9 +2446,139 @@
             if (currentMode === 'photo') {
                 analyzePhoto();
             } else if (currentMode === 'habitat' && (habitatSubMode === 'live' || habitatSubMode === 'autonomous')) {
-                analyzeSimSnapshot();
+                if (activePromptTab === 'auto') {
+                    toggleAutonomousStream();
+                } else {
+                    toggleStream();
+                }
             } else {
                 toggleStream();
+            }
+        }
+
+        let autonavEventSource = null;
+
+        async function toggleAutonomousStream() {
+            const btn = document.getElementById('action-btn');
+            const cotOverlay = document.getElementById('cot-overlay');
+            const cotContent = document.getElementById('cot-content');
+
+            if (isStreaming) {
+                // STOP
+                fetch('/stop_autonomous_navigate', { method: 'POST' });
+                if (autonavEventSource) {
+                    autonavEventSource.close();
+                    autonavEventSource = null;
+                }
+                isStreaming = false;
+                btn.textContent = habitatSubMode === 'autonomous' ? "Start Navigation" : "Start CoT Assistant";
+                btn.style.backgroundColor = "rgba(230, 190, 0, 0.9)";
+                btn.style.color = "black";
+                cotOverlay.style.border = "1px solid #444";
+                document.getElementById('cot-state').textContent = "STOPPED";
+                document.getElementById('cot-state').style.backgroundColor = "#555";
+            } else {
+                // START
+                cotContent.innerHTML = '';
+                cotOverlay.style.display = 'block';
+                cotOverlay.style.border = "1px solid #007acc";
+                document.getElementById('cot-state').textContent = "RUNNING";
+                document.getElementById('cot-state').style.backgroundColor = "#007acc";
+
+                const formData = new FormData();
+                formData.append('goal', document.getElementById('autonav-target').value);
+                formData.append('initial_state', document.getElementById('autonav-initial-state').value);
+                formData.append('device_choice', selectedDevice);
+                formData.append('execute_cmds', habitatSubMode === 'autonomous' ? "true" : "false");
+                if (selectedModel) formData.append('model_choice', selectedModel);
+
+                // Send prompts for CURRENT scenario
+                const s = scenarios[currentScenario] || scenarios['scenario1'];
+                formData.append('core_prompt', s.core);
+                formData.append('searching_prompt', s.searching);
+                formData.append('navigating_prompt', s.navigating);
+                formData.append('recovering_prompt', s.recovering);
+
+                btn.disabled = true;
+                btn.textContent = "Starting...";
+
+                try {
+                    const startRes = await fetch('/start_autonomous_navigate', {
+                        method: 'POST', body: formData
+                    });
+                    const startData = await startRes.json();
+                    if (startData.status !== 'success') {
+                        alert("Could not start: " + startData.message);
+                        btn.disabled = false;
+                        cotOverlay.style.display = 'none';
+                        return;
+                    }
+
+                    isStreaming = true;
+                    btn.disabled = false;
+                    btn.textContent = habitatSubMode === 'autonomous' ? "Stop Navigation" : "Stop Assistant";
+                    btn.style.backgroundColor = "rgba(204, 0, 0, 0.8)";
+                    btn.style.color = "white";
+
+                    logDebug("Starting AutonomousNavigator Stream...");
+
+                    autonavEventSource = new EventSource('/autonomous_navigate_stream');
+
+                    autonavEventSource.onmessage = function (event) {
+                        try {
+                            const data = JSON.parse(event.data);
+                            if (data.type === 'log') {
+                                // Add to CoT View
+                                cotContent.innerHTML += `<div style="color: #9cdcfe; margin-top: 8px;">[System] ${data.data}</div>`;
+                                // Add to Result Log
+                                logDebug(`[AutoNav] ${data.data}`);
+                            } else if (data.type === 'reasoning_chunk') {
+                                cotContent.innerHTML += `<span>${data.data} </span>`;
+                                // Scroll CoT
+                                cotOverlay.scrollTop = cotOverlay.scrollHeight;
+                            } else if (data.type === 'state_update') {
+                                const stateEl = document.getElementById('cot-state');
+                                const state = data.data.state;
+                                stateEl.textContent = state;
+
+                                // Dynamic Styling
+                                if (state === 'SEARCHING') {
+                                    stateEl.style.backgroundColor = '#d19a66'; // Orange-ish
+                                } else if (state === 'NAVIGATING') {
+                                    stateEl.style.backgroundColor = '#98c379'; // Green
+                                } else if (state === 'RECOVERING') {
+                                    stateEl.style.backgroundColor = '#e06c75'; // Red
+                                } else {
+                                    stateEl.style.backgroundColor = '#007acc'; // Default Blue
+                                }
+
+                                cotContent.innerHTML += `<div style="border-top: 1px dashed #555; margin-top: 10px; padding-top: 10px; opacity: 0.6;"></div>`;
+                            } else if (data.type === 'error') {
+                                cotContent.innerHTML += `<div style="color: #f44747; margin-top: 8px;">[Error] ${data.data}</div>`;
+                                logDebug(`<span style="color:#f44747">[AutoNav Error] ${data.data}</span>`);
+                            } else if (data.type === 'frame_update') {
+                                // Received a base64 frame update from an action
+                                photoDisplay.src = "data:image/jpeg;base64," + data.data;
+                            } else if (data.type === 'stopped') {
+                                toggleAutonomousStream(); // Triggers the stop block
+                            }
+                            cotOverlay.scrollTop = cotOverlay.scrollHeight;
+                        } catch (e) {
+                            console.error("Parse Error in SSE:", e);
+                        }
+                    };
+
+                    autonavEventSource.onerror = function () {
+                        if (isStreaming) {
+                            toggleAutonomousStream();
+                            logDebug(`<span style="color:#f44747">[AutoNav] Stream disconnected.</span>`);
+                        }
+                    }
+
+                } catch (e) {
+                    alert("Error starting stream: " + e);
+                    btn.disabled = false;
+                }
             }
         }
 
@@ -1933,7 +2632,7 @@
 
         async function savePrompt() {
             const content = promptInput.value;
-            const name = prompt("Enter a name for this prompt (will be saved in /prompts):");
+            const name = prompt("Enter a name for this prompt (will be saved in /core prompts):");
             if (name) {
                 const formData = new FormData();
                 formData.append('name', name);
@@ -2287,6 +2986,7 @@
 
         // Initial state check
         updateButtonStates();
+        loadScenariosFromServer();
 
         // Stop/Pause analysis based on video state
         video.addEventListener('ended', () => {

@@ -1,8 +1,9 @@
 import uvicorn
 from fastapi import FastAPI, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.templating import Jinja2Templates
+from autonomous_navigator import AutonomousNavigator
 from contextlib import asynccontextmanager
 from transformers import Qwen2VLForConditionalGeneration, AutoProcessor
 from qwen_vl_utils import process_vision_info
@@ -96,7 +97,35 @@ import threading
 habitat_lock = threading.Lock()
 SCENE_PATH = config.SCENE_PATH
 SETTINGS_FILE = "settings.json"
+SCENARIOS_FILE = "scenarios.json"
 SESSION_SETTINGS = {"height": 0.0, "height_lock": False}
+
+def load_scenarios():
+    if os.path.exists(SCENARIOS_FILE):
+        try:
+            with open(SCENARIOS_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"Error loading scenarios: {e}")
+    
+    # Default structure
+    return {
+        'scenario1': {
+            'core': "",
+            'searching': "",
+            'navigating': "",
+            'recovering': ""
+        }
+    }
+
+def save_scenarios(scenarios):
+    try:
+        with open(SCENARIOS_FILE, "w", encoding="utf-8") as f:
+            json.dump(scenarios, f, indent=4)
+        return True
+    except Exception as e:
+        logger.error(f"Error saving scenarios: {e}")
+        return False
 
 def load_settings():
     # For session-only settings, we return the current session settings
@@ -156,7 +185,7 @@ app = FastAPI(lifespan=lifespan)
 templates = Jinja2Templates(directory="templates")
 
 # Ensure prompts and results directories exist
-os.makedirs("prompts", exist_ok=True)
+os.makedirs("core prompts", exist_ok=True)
 os.makedirs("results", exist_ok=True)
 
 # Custom Log Filter to silence /stats
@@ -191,6 +220,21 @@ async def get_stats():
 async def read_root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
+@app.get("/get_scenarios")
+async def get_scenarios_endpoint():
+    return load_scenarios()
+
+@app.post("/save_scenarios")
+async def save_scenarios_endpoint(request: Request):
+    try:
+        data = await request.json()
+        if save_scenarios(data):
+            return {"status": "success"}
+        else:
+            return {"status": "error", "message": "Failed to save file"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 @app.post("/save_prompt")
 async def save_prompt(name: str = Form(...), content: str = Form(...)):
     try:
@@ -199,12 +243,17 @@ async def save_prompt(name: str = Form(...), content: str = Form(...)):
         if not safe_name:
             return {"status": "error", "message": "Invalid filename"}
         
-        filepath = os.path.join("prompts", f"{safe_name}.txt")
+        # Ensure target directory exists
+        save_dir = "core prompts"
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
+            
+        filepath = os.path.join(save_dir, f"{safe_name}.txt")
         timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
         with open(filepath, "w", encoding="utf-8") as f:
             f.write(f"--- SAVED AT: {timestamp} ---\n\n")
             f.write(content)
-        return {"status": "success", "message": f"Saved to prompts/{safe_name}.txt"}
+        return {"status": "success", "message": f"Saved to {save_dir}/{safe_name}.txt"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -833,7 +882,143 @@ async def generate_video(
             return {"status": "error", "message": result}
     except Exception as e:
         logger.error(f"Video generation error: {e}")
-        return {"status": "error", "message": str(e)}
+# --- OptiSight CoT Navigator Integration ---
+autonomous_navigator = None
+
+def do_inference_for_navigator(prompt, device_choice, model_choice):
+    global habitat_controller, model, processor
+    
+    frame_b64 = habitat_controller.get_frame_as_base64()
+    import base64
+    image_data = base64.b64decode(frame_b64)
+    image = Image.open(io.BytesIO(image_data)).convert("RGB")
+    
+    load_model_on_demand(device_choice, model_choice)
+    
+    if model_choice == "qwen2-2b":
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image", "image": image},
+                    {"type": "text", "text": prompt},
+                ],
+            }
+        ]
+        text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        from qwen_vl_utils import process_vision_info
+        import torch
+        image_inputs, video_inputs = process_vision_info(messages)
+        inputs = processor(
+                text=[text],
+                images=image_inputs,
+                videos=video_inputs,
+                padding=True,
+                return_tensors="pt",
+            ).to(model.device)
+
+        with torch.no_grad():
+            generated_ids = model.generate(
+                **inputs, max_new_tokens=150, do_sample=True, temperature=0.1
+            )
+            
+        generated_ids_trimmed = [
+            out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
+        ]
+        output_text = processor.batch_decode(
+            generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
+        )
+        return output_text[0]
+        
+    elif model_choice in ["qwen3.5-0.8b", "qwen3.5-2b"]:
+        import os, requests, config
+        temp_image_path = os.path.join(os.getcwd(), "temp_auto_image.jpg")
+        image.save(temp_image_path)
+        
+        target_path = config.QWEN35_08B_PATH if model_choice == "qwen3.5-0.8b" else config.QWEN35_2B_PATH
+        api_payload = {
+            "model_path": target_path,
+            "image_path": temp_image_path,
+            "prompt": prompt,
+            "device": device_choice
+        }
+        resp = requests.post("http://127.0.0.1:8001/analyze", json=api_payload, timeout=120)
+        result_data = resp.json()
+        
+        if os.path.exists(temp_image_path):
+            os.remove(temp_image_path)
+            
+        if result_data.get("status") == "success":
+            return result_data.get("response")
+        else:
+            raise Exception(f"Bridge Error: {result_data.get('message')}")
+            
+def do_move_for_navigator(action):
+    global habitat_controller, autonomous_navigator
+    if habitat_controller:
+        prev_collisions = habitat_controller.collision_count
+        frame = habitat_controller.move_agent(action)
+        # Check if a collision occurred during this move
+        if habitat_controller.collision_count > prev_collisions:
+            if autonomous_navigator:
+                autonomous_navigator.trigger_collision()
+        return frame
+    return None
+
+@app.post("/start_autonomous_navigate")
+async def start_autonomous_navigate(
+    goal: str = Form(...),
+    core_prompt: str = Form(None),
+    searching_prompt: str = Form(None),
+    navigating_prompt: str = Form(None),
+    recovering_prompt: str = Form(None),
+    device_choice: str = Form("cuda"),
+    model_choice: str = Form("qwen2-2b"),
+    execute_cmds: str = Form("true"),
+    initial_state: str = Form("SEARCHING")
+):
+    global autonomous_navigator, habitat_controller
+    if habitat_controller is None:
+        return {"status": "error", "message": "Simulator not initialized"}
+        
+    execute_cmds_bool = execute_cmds.lower() == "true"
+        
+    if autonomous_navigator is None:
+        autonomous_navigator = AutonomousNavigator(
+            inference_callback=lambda p: do_inference_for_navigator(p, device_choice, model_choice),
+            move_callback=do_move_for_navigator,
+            execute_cmds=execute_cmds_bool
+        )
+        
+    autonomous_navigator.inference_callback = lambda p: do_inference_for_navigator(p, device_choice, model_choice)
+    autonomous_navigator.execute_cmds = execute_cmds_bool
+    
+    prompts = {
+        "core": core_prompt,
+        "searching": searching_prompt,
+        "navigating": navigating_prompt,
+        "recovering": recovering_prompt
+    }
+    # Filter out None
+    prompts = {k: v for k, v in prompts.items() if v is not None}
+    
+    autonomous_navigator.update_settings(goal, prompts=prompts, initial_state=initial_state)
+    
+    return {"status": "success"}
+
+@app.get("/autonomous_navigate_stream")
+async def autonomous_navigate_stream():
+    global autonomous_navigator
+    if autonomous_navigator is None:
+        return {"status": "error", "message": "Not started"}
+    return StreamingResponse(autonomous_navigator.navigate_stream(), media_type="text/event-stream")
+    
+@app.post("/stop_autonomous_navigate")
+async def stop_autonomous_navigate():
+    global autonomous_navigator
+    if autonomous_navigator:
+        autonomous_navigator.set_running(False)
+    return {"status": "success"}
 
 if __name__ == "__main__":
     uvicorn.run("server:app", host="0.0.0.0", port=8000, reload=False)
