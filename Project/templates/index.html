@@ -31,6 +31,8 @@
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
+            overflow: hidden;
+            min-height: 0;
         }
 
         .left-panel {
@@ -208,6 +210,117 @@
             min-width: 160px;
         }
 
+        .scenario-pill,
+        .state-pill {
+            padding: 6px 14px;
+            background: #2d2d2d;
+            color: #ccc;
+            border: 1px solid #444;
+            border-radius: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-block;
+        }
+
+        .scenario-pill.active {
+            background: #007acc;
+            color: white;
+            border-color: #007acc;
+            box-shadow: 0 0 10px rgba(0, 122, 204, 0.5);
+            animation: glow-blue 2s infinite alternate;
+        }
+
+        .state-pill.active {
+            background: #4ec9b0;
+            color: #1e1e1e;
+            font-weight: bold;
+            border-color: #4ec9b0;
+            box-shadow: 0 0 10px rgba(78, 201, 176, 0.5);
+            animation: glow-green 2s infinite alternate;
+        }
+
+        @keyframes glow-blue {
+            from {
+                box-shadow: 0 0 5px rgba(0, 122, 204, 0.4);
+            }
+
+            to {
+                box-shadow: 0 0 15px rgba(0, 122, 204, 0.8);
+            }
+        }
+
+        @keyframes glow-green {
+            from {
+                box-shadow: 0 0 5px rgba(78, 201, 176, 0.4);
+            }
+
+            to {
+                box-shadow: 0 0 15px rgba(78, 201, 176, 0.8);
+            }
+        }
+
+        .mode-toggle-group {
+            display: flex;
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            padding: 2px;
+            margin-bottom: 5px;
+            width: fit-content;
+            gap: 15px;
+        }
+
+        .mode-toggle-btn {
+            padding: 10px 24px;
+            border: 1px solid #444;
+            background: #2d2d2d;
+            color: #888;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .mode-toggle-btn.active {
+            background: #444;
+            color: white;
+        }
+
+        .mode-toggle-btn:hover {
+            opacity: 0.9;
+            /* Subtle indicator without color change */
+        }
+
+        .mode-toggle-btn.active:hover {
+            background: #444;
+            /* Keep background same when active */
+        }
+
+        .scenario-pill:hover,
+        .state-pill:hover {
+            background: #3d3d3d;
+        }
+
+        .scenario-pill.active:hover {
+            background: #007acc;
+        }
+
+        .state-pill.active:hover {
+            background: #4ec9b0;
+        }
+
+        .active-label {
+            color: #9cdcfe;
+            font-weight: bold;
+            display: block;
+            margin-bottom: 8px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
         #action-btn:active {
             transform: scale(0.98);
         }
@@ -340,7 +453,8 @@
             display: flex;
             flex-direction: column;
             flex: 1;
-            /* 25% */
+            overflow: hidden;
+            min-height: 0;
         }
 
         .section label {
@@ -378,11 +492,13 @@
         }
 
         .result-section {
-            flex: 3;
-            /* 75% */
+            flex: 1;
+            /* Take remaining space */
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            min-height: 250px;
+            /* Ensure some visibility */
         }
 
         #result-display {
@@ -504,7 +620,7 @@
             border: 2px solid #555;
             border-radius: 8px;
             cursor: pointer;
-            width: 300px;
+            width: 400px;
             text-align: center;
             transition: all 0.2s;
         }
@@ -657,7 +773,11 @@
         .tab-content {
             display: none;
             flex-direction: column;
-            flex: 1;
+            flex: none;
+            /* Don't force equal height */
+            overflow: visible;
+            /* Allow content to determine size */
+            min-height: 0;
         }
 
         .tab-content.active {
@@ -889,8 +1009,12 @@
 
                 <div id="habitat-selection-overlay" class="habitat-overlay">
                     <h2 style="color: white; margin-bottom: 20px;">Select Habitat Mode</h2>
-                    <button class="habitat-btn" onclick="selectHabitatMode('live')">Live Control</button>
-                    <button class="habitat-btn" onclick="selectHabitatMode('autonomous')">Autonomous VLM</button>
+                    <button class="habitat-btn" onclick="selectHabitatMode('live')">Live Control (State
+                        Transition)</button>
+                    <button class="habitat-btn" onclick="selectHabitatMode('live_one_shot')">Live Control (One
+                        Shot)</button>
+                    <button class="habitat-btn" disabled style="opacity: 0.5; cursor: not-allowed;">Autonomous VLM
+                        (Soon)</button>
                     <button id="cancel-habitat-overlay"
                         style="margin-top:20px; background:transparent; border:none; color:#aaa; cursor:pointer;"
                         onclick="document.getElementById('habitat-selection-overlay').style.display='none'">Cancel</button>
@@ -1152,191 +1276,283 @@
                 <div id="tab-auto" class="tab-content">
                     <div
                         style="background: #252526; padding: 15px; border-radius: 6px; border: 1px solid #444; text-align: left; margin-bottom: 10px;">
-                        <h3 style="color: #4ec9b0; margin-top: 0; margin-bottom: 10px;">OptiSight Core Active</h3>
-                        <p style="color: #bbb; font-size: 13px; line-height: 1.5; margin-bottom: 15px;">
-                            The system will utilize advanced Chain-of-Thought reasoning to accomplish real-time physical
-                            navigation objectives.
-                        </p>
-                        <button onclick="openAutoNavModal()"
-                            style="padding: 10px 20px; font-size: 14px; font-weight: bold; color: white; background: #007acc; border: none; border-radius: 4px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;">
-                            Configure OptiSight CoT Navigation
-                        </button>
+                        <div style="display: flex; justify-content: center; margin-bottom: 5px; padding-bottom: 5px;">
+                            <div class="mode-toggle-group" style="margin-bottom: 0;">
+                                <button class="mode-toggle-btn" id="mode-toggle-manual"
+                                    onclick="setAutomationMode('manual')">Manual Mode</button>
+                                <button class="mode-toggle-btn" id="mode-toggle-auto"
+                                    onclick="setAutomationMode('auto')">Automatic Mode</button>
+                            </div>
+                        </div>
+
+                        <div id="cot-navigator-content"
+                            style="display: none; border-top: 1px solid #444; padding-top: 20px;">
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                                <h3 style="color: #4ec9b0; margin-top: 0; margin-bottom: 0;">OptiSight Core Active</h3>
+                                <button onclick="openAutoNavModal()"
+                                    style="padding: 8px 16px; font-size: 14px; font-weight: bold; color: white; background: #007acc; border: none; border-radius: 4px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                                    Configure Settings
+                                </button>
+                            </div>
+                            <p style="color: #bbb; font-size: 13px; line-height: 1.5; margin-bottom: 15px;">
+                                The system will utilize advanced Chain-of-Thought reasoning to accomplish real-time
+                                physical
+                                navigation objectives.
+                            </p>
+
+                            <div style="margin-top: 20px; border-top: 1px solid #444; padding-top: 15px;">
+                                <div style="display: flex; justify-content: space-between; align-items: stretch;">
+                                    <div style="flex: 1;">
+                                        <label class="active-label">Core Progress State</label>
+                                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                                            <button class="state-pill active" id="state-pill-searching"
+                                                onclick="handleStatePillClick('searching')">Searching</button>
+                                            <button class="state-pill" id="state-pill-navigating"
+                                                onclick="handleStatePillClick('navigating')">Navigating</button>
+                                            <button class="state-pill" id="state-pill-recovering"
+                                                onclick="handleStatePillClick('recovering')">Recovering</button>
+                                        </div>
+                                    </div>
+                                    <div style="width: 1px; background: #444; margin: 0 20px;"></div>
+                                    <div style="text-align: right;">
+                                        <label class="active-label">Scenario Selector</label>
+                                        <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                                            <button class="scenario-pill active"
+                                                onclick="switchScenario('scenario1')">Scenario 1</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="result-section" style="margin-top: 0;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+                        <label style="margin-bottom: 0;">Analysis Result</label>
+                    </div>
+                    <div id="result-display">Waiting for input...</div>
+                    <div style="display:flex; justify-content:flex-end; gap: 10px; margin-top: 10px;">
+                        <button id="btn-clear-result" onclick="clearResult()">Clear</button>
+                        <button id="btn-save-result" onclick="saveCurrentResult()">Save Result</button>
                     </div>
                 </div>
             </div>
-
-            <div class="result-section" style="margin-top: 0;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
-                    <label style="margin-bottom: 0;">Analysis Result</label>
-                </div>
-                <div id="result-display">Waiting for input...</div>
-                <div style="display:flex; justify-content:flex-end; gap: 10px; margin-top: 10px;">
-                    <button id="btn-clear-result" onclick="clearResult()">Clear</button>
-                    <button id="btn-save-result" onclick="saveCurrentResult()">Save Result</button>
-                </div>
-            </div>
         </div>
-    </div>
 
-    <script>
-        const video = document.getElementById('video-feed');
-        const canvas = document.getElementById('canvas');
-        const photoDisplay = document.getElementById('captured-photo');
-        const resultDisplay = document.getElementById('result-display');
-        const fpsLabel = document.getElementById('fps-val');
-        const actionBtn = document.getElementById('action-btn');
-        const promptInput = document.getElementById('prompt-input');
-        const placeholder = document.getElementById('placeholder-text');
+        <script>
+            const video = document.getElementById('video-feed');
+            const canvas = document.getElementById('canvas');
+            const photoDisplay = document.getElementById('captured-photo');
+            const resultDisplay = document.getElementById('result-display');
+            const fpsLabel = document.getElementById('fps-val');
+            const actionBtn = document.getElementById('action-btn');
+            const promptInput = document.getElementById('prompt-input');
+            const placeholder = document.getElementById('placeholder-text');
 
-        // Resource Monitor elements
-        const ramVal = document.getElementById('ram-val');
-        const gpuVal = document.getElementById('gpu-val');
-        const gpuMem = document.getElementById('gpu-mem');
+            // Resource Monitor elements
+            const ramVal = document.getElementById('ram-val');
+            const gpuVal = document.getElementById('gpu-val');
+            const gpuMem = document.getElementById('gpu-mem');
 
-        // Periodic Stats Polling
-        async function updateStats() {
-            try {
-                const res = await fetch('/stats');
-                const data = await res.json();
-                ramVal.textContent = data.ram + '%';
-                gpuVal.textContent = data.gpu.percent + '%';
-                gpuMem.textContent = data.gpu.usage;
+            // Periodic Stats Polling
+            async function updateStats() {
+                try {
+                    const res = await fetch('/stats');
+                    const data = await res.json();
+                    ramVal.textContent = data.ram + '%';
+                    gpuVal.textContent = data.gpu.percent + '%';
+                    gpuMem.textContent = data.gpu.usage;
 
-                // Color coding RAM
-                if (data.ram > 90) ramVal.style.color = '#f44747';
-                else if (data.ram > 70) ramVal.style.color = '#dcdcaa';
-                else ramVal.style.color = '#4ec9b0';
-            } catch (e) { }
-        }
-        setInterval(updateStats, 2000);
-        updateStats();
-
-        // File inputs
-        const photoUpload = document.getElementById('photo-upload');
-        const videoUpload = document.getElementById('video-upload');
-
-        let currentMode = null;
-        let streamTimeout = null;
-        let lastAnalysisTimestamp = 0;
-        let remainingTimeAtPause = 0;
-        let captureIntervalSec = 3;
-        let currentSourceName = '';
-        let isStreaming = false;
-        let selectedDevice = 'cuda';
-        let isModelLoaded = false;
-        let selectedModel = null; // Store chosen model
-
-        let currentAnalysisController = null; // Controller for cancelling pending requests
-
-        const BASE_PROMPT = "Describe this image";
-
-        // Hierarchical Scenario & Prompt Management
-        let currentScenario = 'scenario1';
-        let currentPromptTab = 'core';
-
-        // Data structure: scenarios[scenarioId][promptType]
-        let scenarios = {
-            'scenario1': {
-                'core': "",
-                'searching': "",
-                'navigating': "",
-                'recovering': ""
+                    // Color coding RAM
+                    if (data.ram > 90) ramVal.style.color = '#f44747';
+                    else if (data.ram > 70) ramVal.style.color = '#dcdcaa';
+                    else ramVal.style.color = '#4ec9b0';
+                } catch (e) { }
             }
-        };
+            setInterval(updateStats, 2000);
+            updateStats();
 
-        function switchScenario(scenarioId) {
-            saveActivePromptToMemory();
-            currentScenario = scenarioId;
+            // File inputs
+            const photoUpload = document.getElementById('photo-upload');
+            const videoUpload = document.getElementById('video-upload');
 
-            // UI Update for Scenario Tabs
-            document.querySelectorAll('.scenario-tab').forEach(btn => {
-                btn.classList.toggle('active', btn.textContent.toLowerCase().includes(scenarioId.replace('scenario', '')));
-            });
+            let currentMode = null;
+            let streamTimeout = null;
+            let lastAnalysisTimestamp = 0;
+            let remainingTimeAtPause = 0;
+            let captureIntervalSec = 3;
+            let currentSourceName = '';
+            let isStreaming = false;
+            let selectedDevice = 'cuda';
+            let isModelLoaded = false;
+            let selectedModel = null; // Store chosen model
 
-            // Load the prompt for the active tab in this scenario
-            loadActivePromptFromMemory();
-        }
+            let currentAnalysisController = null; // Controller for cancelling pending requests
 
-        function switchCoTPromptTab(tab, skipSave = false) {
-            if (!skipSave) {
-                saveActivePromptToMemory();
-            }
+            const BASE_PROMPT = "Describe this image";
 
-            currentPromptTab = tab;
+            // Hierarchical Scenario & Prompt Management
+            let currentScenario = 'scenario1';
+            let currentPromptTab = 'searching';
+            let currentAutomationMode = null; // 'auto' or 'manual'
 
-            // UI Update for Prompt Tabs
-            document.querySelectorAll('.prompt-tab').forEach(btn => {
-                btn.classList.toggle('active', btn.textContent.toLowerCase() === tab);
-            });
-
-            // UI Update for Visual Flow Nodes
-            document.querySelectorAll('.state-node').forEach(node => {
-                node.classList.remove('active');
-            });
-            const flowNode = document.getElementById(`flow-node-${tab}`);
-            if (flowNode) {
-                flowNode.classList.add('active');
-            }
-
-            loadActivePromptFromMemory();
-        }
-
-        function loadActivePromptFromMemory() {
-            const value = scenarios[currentScenario][currentPromptTab] || "";
-            document.getElementById('autonav-prompt-editor').value = value;
-        }
-
-        function saveActivePromptToMemory() {
-            const editor = document.getElementById('autonav-prompt-editor');
-            if (!editor) return;
-            const val = editor.value;
-            if (!scenarios[currentScenario]) scenarios[currentScenario] = {};
-            scenarios[currentScenario][currentPromptTab] = val;
-        }
-
-        function saveActivePromptTab() {
-            saveActivePromptToMemory();
-            syncScenariosToServer();
-            alert(`Prompt for ${currentScenario.toUpperCase()} - ${currentPromptTab.toUpperCase()} saved persistently.`);
-        }
-
-        async function syncScenariosToServer() {
-            try {
-                await fetch('/save_scenarios', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(scenarios)
-                });
-                console.log("Scenarios synced to server.");
-            } catch (e) {
-                console.error("Failed to sync scenarios:", e);
-            }
-        }
-
-        async function loadScenariosFromServer() {
-            try {
-                const res = await fetch('/get_scenarios');
-                const data = await res.json();
-                if (data && typeof data === 'object') {
-                    // Merge with defaults to ensure all keys exist
-                    scenarios = { ...scenarios, ...data };
-                    console.log("Scenarios loaded from server.");
-                    loadActivePromptFromMemory();
+            // Data structure: scenarios[scenarioId][promptType]
+            let scenarios = {
+                'scenario1': {
+                    'core': "",
+                    'searching': "",
+                    'navigating': "",
+                    'recovering': ""
                 }
-            } catch (e) {
-                console.error("Failed to load scenarios:", e);
-            }
-        }
+            };
 
-        function openAutoNavModal() {
-            if (!scenarios['scenario1']) {
-                scenarios['scenario1'] = { core: "", searching: "", navigating: "", recovering: "" };
-            }
-            const s1 = scenarios['scenario1'];
+            function switchScenario(scenarioId) {
+                saveActivePromptToMemory();
+                currentScenario = scenarioId;
 
-            // Populate defaults if empty (first time)
-            if (!s1.core) {
-                s1.core = `You are the OptiSight Visual Reasoning Core.
+                // UI Update for Scenario Tabs
+                document.querySelectorAll('.scenario-tab').forEach(btn => {
+                    btn.classList.toggle('active', btn.textContent.toLowerCase().includes(scenarioId.replace('scenario', '')));
+                });
+
+                // UI Update for Scenario Pills (Main UI)
+                document.querySelectorAll('.scenario-pill').forEach(pill => {
+                    pill.classList.toggle('active', pill.getAttribute('onclick').includes(`'${scenarioId}'`));
+                });
+
+                // Update mode - the user said "Manual sectigimde Scenariolar ... degistirilebilir olmali"
+                // For now, switchScenario just sets the scenario.
+
+                // Load the prompt for the active tab in this scenario
+                loadActivePromptFromMemory();
+            }
+
+            function setAutomationMode(mode) {
+                currentAutomationMode = mode;
+
+                // Show content area
+                const content = document.getElementById('cot-navigator-content');
+                if (content) content.style.display = 'block';
+
+                // Update Buttons
+                document.getElementById('mode-toggle-auto').classList.toggle('active', mode === 'auto');
+                document.getElementById('mode-toggle-manual').classList.toggle('active', mode === 'manual');
+
+                logDebug(`Mode changed to: ${mode.toUpperCase()}`);
+
+                if (mode === 'manual') {
+                    // Manual: Clear active state initially
+                    currentPromptTab = null;
+                    updateStatePills(null);
+                } else {
+                    // Auto: Default to searching
+                    currentPromptTab = 'searching';
+                    switchCoTPromptTab('searching', true);
+                    updateStatePills('searching');
+                }
+            }
+
+            function handleStatePillClick(tab) {
+                if (currentAutomationMode === 'manual') {
+                    switchCoTPromptTab(tab, true);
+                    updateStatePills(tab);
+                } else {
+                    // In auto mode, state pills are primarily indicators
+                    logDebug("State cannot be changed manually in Automatic mode.");
+                }
+            }
+
+            function switchCoTPromptTab(tab, skipSave = false) {
+                if (!skipSave) {
+                    saveActivePromptToMemory();
+                }
+
+                currentPromptTab = tab;
+
+                // UI Update for Prompt Tabs
+                document.querySelectorAll('.prompt-tab').forEach(btn => {
+                    btn.classList.toggle('active', btn.textContent.toLowerCase() === tab);
+                });
+
+                // UI Update for Visual Flow Nodes
+                document.querySelectorAll('.state-node').forEach(node => {
+                    node.classList.remove('active');
+                });
+                const flowNode = document.getElementById(`flow-node-${tab}`);
+                if (flowNode) {
+                    flowNode.classList.add('active');
+                }
+
+                // Sync Main UI pills if they exist
+                updateStatePills(tab);
+
+                loadActivePromptFromMemory();
+            }
+
+            function updateStatePills(tab) {
+                document.querySelectorAll('.state-pill').forEach(pill => {
+                    pill.classList.toggle('active', pill.id === `state-pill-${tab}`);
+                });
+            }
+
+            function loadActivePromptFromMemory() {
+                const value = scenarios[currentScenario][currentPromptTab] || "";
+                document.getElementById('autonav-prompt-editor').value = value;
+            }
+
+            function saveActivePromptToMemory() {
+                const editor = document.getElementById('autonav-prompt-editor');
+                if (!editor) return;
+                const val = editor.value;
+                if (!scenarios[currentScenario]) scenarios[currentScenario] = {};
+                scenarios[currentScenario][currentPromptTab] = val;
+            }
+
+            function saveActivePromptTab() {
+                saveActivePromptToMemory();
+                syncScenariosToServer();
+                alert(`Prompt for ${currentScenario.toUpperCase()} - ${currentPromptTab.toUpperCase()} saved persistently.`);
+            }
+
+            async function syncScenariosToServer() {
+                try {
+                    await fetch('/save_scenarios', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(scenarios)
+                    });
+                    console.log("Scenarios synced to server.");
+                } catch (e) {
+                    console.error("Failed to sync scenarios:", e);
+                }
+            }
+
+            async function loadScenariosFromServer() {
+                try {
+                    const res = await fetch('/get_scenarios');
+                    const data = await res.json();
+                    if (data && typeof data === 'object') {
+                        // Merge with defaults to ensure all keys exist
+                        scenarios = { ...scenarios, ...data };
+                        console.log("Scenarios loaded from server.");
+                        loadActivePromptFromMemory();
+                    }
+                } catch (e) {
+                    console.error("Failed to load scenarios:", e);
+                }
+            }
+
+            function openAutoNavModal() {
+                if (!scenarios['scenario1']) {
+                    scenarios['scenario1'] = { core: "", searching: "", navigating: "", recovering: "" };
+                }
+                const s1 = scenarios['scenario1'];
+
+                // Populate defaults if empty (first time)
+                if (!s1.core) {
+                    s1.core = `You are the OptiSight Visual Reasoning Core.
 GOAL: {goal}
 MEMORY: {memory}
 
@@ -1344,10 +1560,10 @@ CRITICAL RULES:
 1. Think step-by-step (CoT).
 2. Output format: Observation, Goal_Check, Plan, Reasoning, <cmd>COMMAND</cmd>.
 3. Common Commands: <cmd>Go Ahead</cmd>, <cmd>Turn Left</cmd>, <cmd>Turn Right</cmd>, <cmd>Turn Back</cmd>, <cmd>Task Completed</cmd>.`;
-            }
+                }
 
-            if (!s1.searching) {
-                s1.searching = `STATE: SEARCHING (Looking for {goal})
+                if (!s1.searching) {
+                    s1.searching = `STATE: SEARCHING (Looking for {goal})
 [INSTRUCTIONS]
 Scan the room. If {goal} is not visible, move forward or turn to explore.
 
@@ -1357,10 +1573,10 @@ Goal_Check: NO
 Plan: 1. Move forward to the end of the hall. 2. Turn right to peek into next room.
 Reasoning: I need to explore further to locate the target.
 <cmd>Go Ahead</cmd>`;
-            }
+                }
 
-            if (!s1.navigating) {
-                s1.navigating = `STATE: NAVIGATING (Goal in Sight)
+                if (!s1.navigating) {
+                    s1.navigating = `STATE: NAVIGATING (Goal in Sight)
 [INSTRUCTIONS]
 The {goal} is visible. Direct all efforts to reach it while avoiding collisions.
 
@@ -1370,10 +1586,10 @@ Goal_Check: YES
 Plan: 1. Adjust 15 degrees left. 2. Move forward through the center.
 Reasoning: The goal is spotted, I will now navigate towards it.
 <cmd>Go Ahead</cmd>`;
-            }
+                }
 
-            if (!s1.recovering) {
-                s1.recovering = `STATE: RECOVERING (Collision/Blocked)
+                if (!s1.recovering) {
+                    s1.recovering = `STATE: RECOVERING (Collision/Blocked)
 [INSTRUCTIONS]
 You just hit an obstacle. You MUST back away or turn significantly to clear your path.
 
@@ -1383,1647 +1599,1763 @@ Goal_Check: YES (Target behind me)
 Plan: 1. Back up 0.5 meters. 2. Turn 180 degrees to face the room.
 Reasoning: I am stuck and need to move back to regain a navigable path.
 <cmd>Turn Back</cmd>`;
-            }
-
-            switchCoTPromptTab(currentPromptTab, true);
-            document.getElementById('autonav-modal').style.display = 'flex';
-        }
-
-        function setDevice(device) {
-            if (device === 'cpu' && selectedDevice !== 'cpu') {
-                const confirmMessage = "Do you want to continue?\n\nWARNING : IT CAN COLLAPSE YOUR SYSTEM";
-                if (!confirm(confirmMessage)) {
-                    return; // Stays on current device
-                }
-            }
-            selectedDevice = device;
-            document.getElementById('device-cpu').classList.toggle('active', device === 'cpu');
-            document.getElementById('device-gpu').classList.toggle('active', device === 'cuda');
-            console.log("Device selected:", device);
-
-            // If device changes and model was loaded, it will be reloaded on next analysis or manual load
-            // For simplicity, we just reset the button state
-            resetLoadButton();
-        }
-
-        // Tab Switching Logic
-        let activePromptTab = 'manual';
-        function switchPromptTab(tabId) {
-            activePromptTab = tabId;
-            document.getElementById('tab-btn-manual').classList.remove('active');
-            document.getElementById('tab-btn-auto').classList.remove('active');
-            document.getElementById('tab-manual').classList.remove('active');
-            document.getElementById('tab-auto').classList.remove('active');
-
-            document.getElementById('tab-btn-' + tabId).classList.add('active');
-            document.getElementById('tab-' + tabId).classList.add('active');
-
-            // Re-eval action button state to update text
-            updateActionButton();
-        }
-
-        function resetLoadButton() {
-            const btn = document.getElementById('load-model-btn');
-            btn.textContent = "Choose Model";
-            btn.style.background = "#444";
-            btn.style.color = "#ccc";
-            btn.disabled = false;
-            isModelLoaded = false;
-            selectedModel = null;
-        }
-
-        async function toggleLoadModel() {
-            const btn = document.getElementById('load-model-btn');
-
-            if (!isModelLoaded) {
-                if (!selectedModel) {
-                    // First time: Show model selection modal
-                    document.getElementById('model-selection-overlay').style.display = 'flex';
-                    return;
                 }
 
-                // LOAD Path
-                btn.disabled = true;
-                btn.textContent = "Loading...";
+                switchCoTPromptTab(currentPromptTab, true);
+                document.getElementById('autonav-modal').style.display = 'flex';
+            }
+
+            function setDevice(device) {
+                if (device === 'cpu' && selectedDevice !== 'cpu') {
+                    const confirmMessage = "Do you want to continue?\n\nWARNING : IT CAN COLLAPSE YOUR SYSTEM";
+                    if (!confirm(confirmMessage)) {
+                        return; // Stays on current device
+                    }
+                }
+                selectedDevice = device;
+                document.getElementById('device-cpu').classList.toggle('active', device === 'cpu');
+                document.getElementById('device-gpu').classList.toggle('active', device === 'cuda');
+                console.log("Device selected:", device);
+
+                // If device changes and model was loaded, it will be reloaded on next analysis or manual load
+                // For simplicity, we just reset the button state
+                resetLoadButton();
+            }
+
+            // Tab Switching Logic
+            let activePromptTab = 'manual';
+            function switchPromptTab(tabId) {
+                activePromptTab = tabId;
+                document.getElementById('tab-btn-manual').classList.remove('active');
+                document.getElementById('tab-btn-auto').classList.remove('active');
+                document.getElementById('tab-manual').classList.remove('active');
+                document.getElementById('tab-auto').classList.remove('active');
+
+                document.getElementById('tab-btn-' + tabId).classList.add('active');
+                document.getElementById('tab-' + tabId).classList.add('active');
+
+                // Re-eval action button state to update text
+                updateActionButton();
+            }
+
+            function resetLoadButton() {
+                const btn = document.getElementById('load-model-btn');
+                btn.textContent = "Choose Model";
+                btn.style.background = "#444";
+                btn.style.color = "#ccc";
+                btn.disabled = false;
+                isModelLoaded = false;
+                selectedModel = null;
+            }
+
+            async function toggleLoadModel() {
+                const btn = document.getElementById('load-model-btn');
+
+                if (!isModelLoaded) {
+                    if (!selectedModel) {
+                        // First time: Show model selection modal
+                        document.getElementById('model-selection-overlay').style.display = 'flex';
+                        return;
+                    }
+
+                    // LOAD Path
+                    btn.disabled = true;
+                    btn.textContent = "Loading...";
+
+                    const formData = new FormData();
+                    formData.append('device_choice', selectedDevice);
+                    formData.append('model_choice', selectedModel);
+
+                    try {
+                        const res = await fetch('/load_model', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        const data = await res.json();
+                        if (data.status === 'success') {
+                            btn.textContent = "Unload Model";
+                            btn.style.background = "#007acc";
+                            btn.style.color = "white";
+                            btn.disabled = false;
+                            isModelLoaded = true;
+
+                            // Debug selected model and loading time to Analysis Result screen
+                            if (typeof logDebug === 'function') {
+                                logDebug(`Model Loaded: ${data.message}`);
+                            }
+
+                            // Wait a moment then fetch stats so GPU memory updates correctly
+                            setTimeout(updateStats, 1500);
+                        } else {
+                            btn.textContent = "Retry Load";
+                            btn.disabled = false;
+                        }
+                    } catch (e) {
+                        btn.textContent = "Error";
+                        btn.disabled = false;
+                    }
+                } else {
+                    // UNLOAD Path
+                    btn.disabled = true;
+                    btn.textContent = "Unloading...";
+
+                    try {
+                        const res = await fetch('/unload_model', { method: 'POST' });
+                        const data = await res.json();
+                        resetLoadButton();
+
+                        if (typeof logDebug === 'function') {
+                            logDebug(data.message || "Model unloaded.");
+                        }
+
+                        // Run updateStats after a short delay since unloading takes a moment on CUDA
+                        setTimeout(updateStats, 1500);
+                    } catch (e) {
+                        btn.textContent = "Error Unload";
+                        btn.disabled = false;
+                    }
+                }
+            }
+
+            function selectModel(modelName) {
+                selectedModel = modelName;
+                document.getElementById('model-selection-overlay').style.display = 'none';
+                // Trigger the actual load
+                toggleLoadModel();
+            }
+
+            function cancelCurrentAnalysis() {
+                if (currentAnalysisController) {
+                    currentAnalysisController.abort();
+                    currentAnalysisController = null;
+                    console.log("Previous analysis cancelled.");
+                }
+            }
+
+            function setMode(mode) {
+                cancelCurrentAnalysis();
+                currentMode = mode;
+                currentSourceName = '';
+                habitatSubMode = null;
+
+                // 1. GLOBAL UI RESETS
+                document.querySelectorAll('.mode-controls button').forEach(b => b.classList.remove('active'));
+                document.getElementById(`btn-${mode}`).classList.add('active');
+
+                video.style.display = 'none';
+                photoDisplay.style.display = 'none';
+                placeholder.style.display = 'block';
+                placeholder.textContent = 'Select a Source';
+                video.pause();
+                video.src = "";
+                photoDisplay.src = "";
+
+                document.getElementById('photo-info').style.display = 'none';
+                document.getElementById('video-info').style.display = 'none';
+                document.getElementById('sim-info').style.display = 'none';
+                document.getElementById('photo-upload').value = '';
+                document.getElementById('video-upload').value = '';
+
+                // Reset 3x3 Grid on every tab switch
+                document.getElementById('grid-toggle-checkbox').checked = false;
+                toggleGrid();
+
+                stopStream();
+                updateActionButton();
+
+                // 2. HABITAT SPECIFIC CLEANUP (Always run)
+                document.getElementById('habitat-selection-overlay').style.display = 'none';
+                document.getElementById('route-canvas').style.display = 'none';
+                const routeCanvas = document.getElementById('route-canvas');
+                if (routeCanvas) {
+                    const ctx = routeCanvas.getContext('2d');
+                    ctx.clearRect(0, 0, routeCanvas.width, routeCanvas.height);
+                }
+                const cc = document.getElementById('collision-counter');
+                if (cc) {
+                    cc.textContent = "Collisions: 0";
+                    cc.dataset.count = "0";
+                    cc.style.display = 'none';
+                }
+
+                // 3. MODE-SPECIFIC SETUP
+                document.getElementById('photo-browse-area').style.display = 'none';
+                document.getElementById('video-browse-area').style.display = 'none';
+                document.getElementById('sim-browse-area').style.display = 'none';
+
+                const fpsControl = document.getElementById('fps-control');
+                const heightControl = document.getElementById('height-checkbox-container');
+
+                if (mode === 'photo') {
+                    document.getElementById('photo-browse-area').style.display = 'flex';
+                    fpsControl.style.display = 'none';
+                    heightControl.style.display = 'none';
+                } else if (mode === 'video') {
+                    document.getElementById('video-browse-area').style.display = 'flex';
+                    fpsControl.style.display = 'flex';
+                    heightControl.style.display = 'none';
+                } else if (mode === 'habitat') {
+                    document.getElementById('sim-browse-area').style.display = 'flex';
+                    document.getElementById('habitat-selection-overlay').style.display = 'flex';
+                    placeholder.textContent = "AI Habitat Interface";
+                    fpsControl.style.display = 'none';
+                    heightControl.style.display = 'flex';
+                }
+                updateGridOverlay();
+            }
+
+            async function selectSim() {
+                try {
+                    const res = await fetch('/list_scenes');
+                    const data = await res.json();
+                    const scenes = data.scenes;
+
+                    const listContainer = document.getElementById('scene-list');
+                    listContainer.innerHTML = '';
+
+                    if (scenes.length === 0) {
+                        listContainer.innerHTML = '<div style="color:#aaa;">No scenes found in "test habitats"</div>';
+                    } else {
+                        scenes.forEach(scene => {
+                            const btn = document.createElement('button');
+                            btn.className = 'habitat-btn';
+                            btn.style.width = '80%';
+                            btn.style.padding = '10px';
+                            btn.style.fontSize = '16px';
+                            btn.textContent = scene;
+                            btn.onclick = () => loadScene(scene);
+                            listContainer.appendChild(btn);
+                        });
+                    }
+
+                    document.getElementById('scene-selection-overlay').style.display = 'flex';
+                } catch (e) {
+                    console.error("Failed to list scenes:", e);
+                    alert("Failed to list scenes: " + e);
+                }
+            }
+
+            async function loadScene(sceneName) {
+                document.getElementById('scene-selection-overlay').style.display = 'none';
 
                 const formData = new FormData();
-                formData.append('device_choice', selectedDevice);
-                formData.append('model_choice', selectedModel);
+                formData.append('scene_name', sceneName);
 
                 try {
-                    const res = await fetch('/load_model', {
+                    const res = await fetch('/init_sim', {
                         method: 'POST',
                         body: formData
                     });
                     const data = await res.json();
                     if (data.status === 'success') {
-                        btn.textContent = "Unload Model";
-                        btn.style.background = "#007acc";
-                        btn.style.color = "white";
-                        btn.disabled = false;
-                        isModelLoaded = true;
+                        document.getElementById('sim-info').textContent = sceneName;
+                        document.getElementById('sim-info').style.display = 'block';
+                        currentSourceName = sceneName;
+                        updateActionButton();
+                        alert("Scene loaded: " + sceneName);
 
-                        // Debug selected model and loading time to Analysis Result screen
-                        if (typeof logDebug === 'function') {
-                            logDebug(`Model Loaded: ${data.message}`);
+                        if (habitatSubMode === 'live' || habitatSubMode === 'live_one_shot' || habitatSubMode === 'autonomous') {
+                            showMapSelection();
+                        } else {
+                            // Default fallback
+                            document.getElementById('habitat-selection-overlay').style.display = 'flex';
                         }
-
-                        // Wait a moment then fetch stats so GPU memory updates correctly
-                        setTimeout(updateStats, 1500);
                     } else {
-                        btn.textContent = "Retry Load";
-                        btn.disabled = false;
+                        alert("Error loading scene: " + data.message);
                     }
                 } catch (e) {
-                    btn.textContent = "Error";
-                    btn.disabled = false;
+                    alert("Error: " + e);
                 }
-            } else {
-                // UNLOAD Path
-                btn.disabled = true;
-                btn.textContent = "Unloading...";
+            }
+            // Map Selection Logic
+            let currentMapInfo = null;
 
+            async function showMapSelection() {
+                // Fetch map from backend
                 try {
-                    const res = await fetch('/unload_model', { method: 'POST' });
+                    const res = await fetch('/get_map', { method: 'POST' });
                     const data = await res.json();
-                    resetLoadButton();
 
-                    if (typeof logDebug === 'function') {
-                        logDebug(data.message || "Model unloaded.");
-                    }
+                    if (data.status === 'success') {
+                        const img = document.getElementById('topdown-map-img');
+                        img.src = 'data:image/jpeg;base64,' + data.map;
+                        currentMapInfo = data.info;
 
-                    // Run updateStats after a short delay since unloading takes a moment on CUDA
-                    setTimeout(updateStats, 1500);
-                } catch (e) {
-                    btn.textContent = "Error Unload";
-                    btn.disabled = false;
-                }
-            }
-        }
-
-        function selectModel(modelName) {
-            selectedModel = modelName;
-            document.getElementById('model-selection-overlay').style.display = 'none';
-            // Trigger the actual load
-            toggleLoadModel();
-        }
-
-        function cancelCurrentAnalysis() {
-            if (currentAnalysisController) {
-                currentAnalysisController.abort();
-                currentAnalysisController = null;
-                console.log("Previous analysis cancelled.");
-            }
-        }
-
-        function setMode(mode) {
-            cancelCurrentAnalysis();
-            currentMode = mode;
-            currentSourceName = '';
-            habitatSubMode = null;
-
-            // 1. GLOBAL UI RESETS
-            document.querySelectorAll('.mode-controls button').forEach(b => b.classList.remove('active'));
-            document.getElementById(`btn-${mode}`).classList.add('active');
-
-            video.style.display = 'none';
-            photoDisplay.style.display = 'none';
-            placeholder.style.display = 'block';
-            placeholder.textContent = 'Select a Source';
-            video.pause();
-            video.src = "";
-            photoDisplay.src = "";
-
-            document.getElementById('photo-info').style.display = 'none';
-            document.getElementById('video-info').style.display = 'none';
-            document.getElementById('sim-info').style.display = 'none';
-            document.getElementById('photo-upload').value = '';
-            document.getElementById('video-upload').value = '';
-
-            // Reset 3x3 Grid on every tab switch
-            document.getElementById('grid-toggle-checkbox').checked = false;
-            toggleGrid();
-
-            stopStream();
-            updateActionButton();
-
-            // 2. HABITAT SPECIFIC CLEANUP (Always run)
-            document.getElementById('habitat-selection-overlay').style.display = 'none';
-            document.getElementById('route-canvas').style.display = 'none';
-            const routeCanvas = document.getElementById('route-canvas');
-            if (routeCanvas) {
-                const ctx = routeCanvas.getContext('2d');
-                ctx.clearRect(0, 0, routeCanvas.width, routeCanvas.height);
-            }
-            const cc = document.getElementById('collision-counter');
-            if (cc) {
-                cc.textContent = "Collisions: 0";
-                cc.dataset.count = "0";
-                cc.style.display = 'none';
-            }
-
-            // 3. MODE-SPECIFIC SETUP
-            document.getElementById('photo-browse-area').style.display = 'none';
-            document.getElementById('video-browse-area').style.display = 'none';
-            document.getElementById('sim-browse-area').style.display = 'none';
-
-            const fpsControl = document.getElementById('fps-control');
-            const heightControl = document.getElementById('height-checkbox-container');
-
-            if (mode === 'photo') {
-                document.getElementById('photo-browse-area').style.display = 'flex';
-                fpsControl.style.display = 'none';
-                heightControl.style.display = 'none';
-            } else if (mode === 'video') {
-                document.getElementById('video-browse-area').style.display = 'flex';
-                fpsControl.style.display = 'flex';
-                heightControl.style.display = 'none';
-            } else if (mode === 'habitat') {
-                document.getElementById('sim-browse-area').style.display = 'flex';
-                document.getElementById('habitat-selection-overlay').style.display = 'flex';
-                placeholder.textContent = "AI Habitat Interface";
-                fpsControl.style.display = 'none';
-                heightControl.style.display = 'flex';
-            }
-            updateGridOverlay();
-        }
-
-        async function selectSim() {
-            try {
-                const res = await fetch('/list_scenes');
-                const data = await res.json();
-                const scenes = data.scenes;
-
-                const listContainer = document.getElementById('scene-list');
-                listContainer.innerHTML = '';
-
-                if (scenes.length === 0) {
-                    listContainer.innerHTML = '<div style="color:#aaa;">No scenes found in "test habitats"</div>';
-                } else {
-                    scenes.forEach(scene => {
-                        const btn = document.createElement('button');
-                        btn.className = 'habitat-btn';
-                        btn.style.width = '80%';
-                        btn.style.padding = '10px';
-                        btn.style.fontSize = '16px';
-                        btn.textContent = scene;
-                        btn.onclick = () => loadScene(scene);
-                        listContainer.appendChild(btn);
-                    });
-                }
-
-                document.getElementById('scene-selection-overlay').style.display = 'flex';
-            } catch (e) {
-                console.error("Failed to list scenes:", e);
-                alert("Failed to list scenes: " + e);
-            }
-        }
-
-        async function loadScene(sceneName) {
-            document.getElementById('scene-selection-overlay').style.display = 'none';
-
-            const formData = new FormData();
-            formData.append('scene_name', sceneName);
-
-            try {
-                const res = await fetch('/init_sim', {
-                    method: 'POST',
-                    body: formData
-                });
-                const data = await res.json();
-                if (data.status === 'success') {
-                    document.getElementById('sim-info').textContent = sceneName;
-                    document.getElementById('sim-info').style.display = 'block';
-                    currentSourceName = sceneName;
-                    updateActionButton();
-                    alert("Scene loaded: " + sceneName);
-
-                    if (habitatSubMode === 'live' || habitatSubMode === 'autonomous') {
-                        showMapSelection();
+                        document.getElementById('map-selection-overlay').style.display = 'flex';
+                        // Hide other overlays
+                        document.getElementById('habitat-selection-overlay').style.display = 'none';
+                        document.getElementById('scene-selection-overlay').style.display = 'none';
                     } else {
-                        // Default fallback
-                        document.getElementById('habitat-selection-overlay').style.display = 'flex';
+                        console.error("Failed to get map:", data.message);
+                        alert("Could not generate map for this scene. Starting at default position.");
+                        // Fallback to start
+                        if (habitatSubMode === 'live' || habitatSubMode === 'live_one_shot' || habitatSubMode === 'autonomous') {
+                            // Start Live Control immediately
+                            // ... Code to start live control view ...
+                            startLiveControlView();
+                        }
                     }
-                } else {
-                    alert("Error loading scene: " + data.message);
-                }
-            } catch (e) {
-                alert("Error: " + e);
-            }
-        }
-        // Map Selection Logic
-        let currentMapInfo = null;
-
-        async function showMapSelection() {
-            // Fetch map from backend
-            try {
-                const res = await fetch('/get_map', { method: 'POST' });
-                const data = await res.json();
-
-                if (data.status === 'success') {
-                    const img = document.getElementById('topdown-map-img');
-                    img.src = 'data:image/jpeg;base64,' + data.map;
-                    currentMapInfo = data.info;
-
-                    document.getElementById('map-selection-overlay').style.display = 'flex';
-                    // Hide other overlays
-                    document.getElementById('habitat-selection-overlay').style.display = 'none';
-                    document.getElementById('scene-selection-overlay').style.display = 'none';
-                } else {
-                    console.error("Failed to get map:", data.message);
-                    alert("Could not generate map for this scene. Starting at default position.");
-                    // Fallback to start
-                    if (habitatSubMode === 'live' || habitatSubMode === 'autonomous') {
-                        // Start Live Control immediately
-                        // ... Code to start live control view ...
+                } catch (e) {
+                    console.error("Network error getting map:", e);
+                    // Fallback
+                    if (habitatSubMode === 'live' || habitatSubMode === 'live_one_shot' || habitatSubMode === 'autonomous') {
                         startLiveControlView();
                     }
                 }
-            } catch (e) {
-                console.error("Network error getting map:", e);
-                // Fallback
-                if (habitatSubMode === 'live' || habitatSubMode === 'autonomous') {
+            }
+
+            function closeMapOverlay() {
+                document.getElementById('map-selection-overlay').style.display = 'none';
+                if (habitatSubMode === 'live' || habitatSubMode === 'live_one_shot' || habitatSubMode === 'autonomous') {
                     startLiveControlView();
                 }
             }
-        }
 
-        function closeMapOverlay() {
-            document.getElementById('map-selection-overlay').style.display = 'none';
-            if (habitatSubMode === 'live' || habitatSubMode === 'autonomous') {
-                startLiveControlView();
+            async function handleMapClick(event) {
+                event.stopPropagation();
+                if (!currentMapInfo) return;
+
+                const img = document.getElementById('topdown-map-img');
+                const rect = img.getBoundingClientRect();
+
+                // Calculate normalized coordinates
+                const x = event.clientX - rect.left;
+                const y = event.clientY - rect.top;
+
+                const normX = x / rect.width;
+                const normY = y / rect.height;
+
+                console.log(`Map Click: ${x}, ${y} -> Norm: ${normX}, ${normY}`);
+
+                // Show marker
+                const marker = document.getElementById('spawn-marker');
+                marker.style.left = x + 'px';
+                marker.style.top = y + 'px';
+                marker.style.display = 'block';
+
+                // Send to backend
+                const formData = new FormData();
+                formData.append('norm_x', normX);
+                formData.append('norm_y', normY);
+                formData.append('map_width', currentMapInfo.width);
+                formData.append('map_height', currentMapInfo.height);
+
+                try {
+                    const res = await fetch('/set_pose', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await res.json();
+
+                    if (data.status === 'success') {
+                        console.log("Spawn set!");
+
+                        // Immediately update view with the frame from set_pose
+                        if (data.frame) {
+                            photoDisplay.src = "data:image/jpeg;base64," + data.frame;
+                            photoDisplay.style.display = 'block';
+                            video.style.display = 'none';
+                            placeholder.style.display = 'none';
+                        }
+
+                        // Wait a bit to show marker then close
+                        setTimeout(() => {
+                            closeMapOverlay();
+                        }, 200); // Faster close
+                    } else {
+                        alert("Failed to spawn there: " + data.message);
+                    }
+                } catch (e) {
+                    console.error("Error setting pose:", e);
+                }
             }
-        }
 
-        async function handleMapClick(event) {
-            event.stopPropagation();
-            if (!currentMapInfo) return;
-
-            const img = document.getElementById('topdown-map-img');
-            const rect = img.getBoundingClientRect();
-
-            // Calculate normalized coordinates
-            const x = event.clientX - rect.left;
-            const y = event.clientY - rect.top;
-
-            const normX = x / rect.width;
-            const normY = y / rect.height;
-
-            console.log(`Map Click: ${x}, ${y} -> Norm: ${normX}, ${normY}`);
-
-            // Show marker
-            const marker = document.getElementById('spawn-marker');
-            marker.style.left = x + 'px';
-            marker.style.top = y + 'px';
-            marker.style.display = 'block';
-
-            // Send to backend
-            const formData = new FormData();
-            formData.append('norm_x', normX);
-            formData.append('norm_y', normY);
-            formData.append('map_width', currentMapInfo.width);
-            formData.append('map_height', currentMapInfo.height);
-
-            try {
-                const res = await fetch('/set_pose', {
-                    method: 'POST',
-                    body: formData
-                });
-                const data = await res.json();
-
-                if (data.status === 'success') {
-                    console.log("Spawn set!");
-
-                    // Immediately update view with the frame from set_pose
-                    if (data.frame) {
+            async function spawnStarter() {
+                try {
+                    const res = await fetch('/spawn_starter', { method: 'POST' });
+                    const data = await res.json();
+                    if (data.status === 'success' && data.frame) {
                         photoDisplay.src = "data:image/jpeg;base64," + data.frame;
                         photoDisplay.style.display = 'block';
                         video.style.display = 'none';
                         placeholder.style.display = 'none';
-                    }
-
-                    // Wait a bit to show marker then close
-                    setTimeout(() => {
                         closeMapOverlay();
-                    }, 200); // Faster close
-                } else {
-                    alert("Failed to spawn there: " + data.message);
-                }
-            } catch (e) {
-                console.error("Error setting pose:", e);
-            }
-        }
-
-        async function spawnStarter() {
-            try {
-                const res = await fetch('/spawn_starter', { method: 'POST' });
-                const data = await res.json();
-                if (data.status === 'success' && data.frame) {
-                    photoDisplay.src = "data:image/jpeg;base64," + data.frame;
-                    photoDisplay.style.display = 'block';
-                    video.style.display = 'none';
-                    placeholder.style.display = 'none';
-                    closeMapOverlay();
-                } else {
-                    alert('Error spawning at starter point: ' + data.message);
-                }
-            } catch (e) {
-                console.error("Spawn starter error:", e);
-                alert("Error: " + e);
-            }
-        }
-
-        function startLiveControlView() {
-            // Re-enable controls
-            document.addEventListener('keydown', handleLiveControlKey);
-            video.style.display = 'none';
-            placeholder.style.display = 'none';
-            photoDisplay.style.display = 'block';
-
-            const cc = document.getElementById('collision-counter');
-            cc.style.display = 'block';
-            cc.textContent = 'Collisions: 0';
-            cc.dataset.count = "0";
-
-            // Fetch initial view
-            // fetchInitialView();
-            // We removed fetchInitialView here because handleMapClick now sets the view.
-            // But if we closed overlay without setting pose (cancel), we might need it.
-            // Let's rely on handleMapClick for the spawn case.
-
-            // Setup Interaction
-            console.log("Live Control Started");
-            logDebug("Live Control Started. Simulator Controls:");
-            logDebug("- W/A/S/D: Move Forward/Left/Back/Right");
-            logDebug("- Q/Z: Look Up/Down");
-            logDebug("- Arrow Keys: Look Up/Down/Left/Right (10°)");
-            logDebug("- E: Interact | F: Snap to Floor | 0: Reset Camera");
-            logDebug("- ESC: Exit Live Control & Return to Menu");
-        }
-
-        let habitatSubMode = null;
-        let routePoints = [];
-
-        function selectHabitatMode(subMode) {
-            habitatSubMode = subMode;
-            document.getElementById('habitat-selection-overlay').style.display = 'none';
-
-            // Show Sim Browse Area now
-            document.getElementById('sim-browse-area').style.display = 'flex';
-
-            const actionBtn = document.getElementById('action-btn');
-
-            if (subMode === 'live' || subMode === 'autonomous') {
-                updateActionButton();
-                actionBtn.style.display = 'block';
-                actionBtn.onclick = handleAction; // Standard analysis loop
-
-                placeholder.innerHTML = "Browse a Sim, then use Simulator Controls:<br>- W/A/S/D: Move | Q/Z & Arrows: Look 10°<br>- E: Interact | F: Snap to Floor | 0: Reset Camera<br>- ESC: Exit Habitat Live Control";
-
-                // Fetch initial view -> CHANGED to Map Selection
-                if (currentSourceName) {
-                    showMapSelection();
-                } else {
-                    // Waiting for user to browse sim
-                }
-            }
-
-            updateActionButton(); // Re-evaluate button state based on loaded file
-        }
-
-        function handleRecordVideo() {
-            if (routePoints.length < 2) {
-                alert("Please draw a route with at least 2 points (Start and End).");
-                return;
-            }
-
-            const btn = document.getElementById('action-btn');
-            btn.disabled = true;
-            btn.textContent = "Recording...";
-
-            // Prepare points
-            const pointsStr = routePoints.map(p => `${p.x},${p.y},0`).join(';'); // Backend expects x,y or x,y,z? 
-            // Wait, the backend generate_video expects start_point and end_point as "x,y,z".
-            // We need to clarify if it supports a full path. 
-            // The specific request says: "fix angle ile cizilen rotada hareket eden robotun gozunden olan video kaybedilmeli"
-            // My backend currently only supports start/end. I will need to update backend too. 
-            // For now, let's send what we can.
-
-            // Actually, 3D points from 2D canvas click is hard without a top-down map calibration.
-            // Placeholder: We will just trigger the backend generation with random points or if we had a map.
-            // Since we don't have a map, clicks on a blank screen are meaningless for coordinates.
-            // BUT, the user asked to "draw a route". 
-            // I will implement the UI interaction now, and we will mock the coordinates or improve backend 
-            // to generated a random valid path if coordinates are not map-relative.
-
-            // Let's assume for now we just trigger the generation as before but with "Record" UI.
-
-            generateVideoFromRoute();
-        }
-
-        async function generateVideoFromRoute() {
-            // ... call backend
-            // Reusing existing generate_video for now, will improve in next step
-            const formData = new FormData();
-            // formData.append('points', JSON.stringify(routePoints)); // Future
-
-            try {
-                const res = await fetch('/generate_video', { method: 'POST', body: formData });
-                const data = await res.json();
-                if (data.status === 'success') {
-                    // Auto play result
-                    video.src = data.video_url;
-                    video.style.display = 'block';
-                    placeholder.style.display = 'none';
-                    document.getElementById('route-canvas').style.display = 'none'; // Hide drawing
-                } else {
-                    alert("Error: " + data.message);
-                }
-            } catch (e) {
-                alert("Error: " + e);
-            }
-
-            const btn = document.getElementById('action-btn');
-            btn.disabled = false;
-            btn.textContent = "Record Video";
-        }
-
-        // Route Drawing Interactions
-        const rc = document.getElementById('route-canvas');
-        rc.addEventListener('click', (e) => {
-            if (habitatSubMode !== 'record') return;
-
-            const rect = rc.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-
-            // Visual feedback
-            const ctx = rc.getContext('2d');
-            ctx.fillStyle = '#007acc';
-            ctx.beginPath();
-            ctx.arc(x, y, 5, 0, Math.PI * 2);
-            ctx.fill();
-
-            if (routePoints.length > 0) {
-                const last = routePoints[routePoints.length - 1];
-                ctx.strokeStyle = '#007acc';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(last.visX, last.visY); // Use visual coords
-                ctx.lineTo(x, y);
-                ctx.stroke();
-            }
-
-            // Store normalized or visual coords? 
-            // Without map, visual is all we have. 
-            routePoints.push({ visX: x, visY: y, x: x / rect.width, y: y / rect.height });
-        });
-
-        function handleLiveControlKey(e) {
-            if (currentMode === 'habitat' && !isStreaming) {
-                // Determine action
-                let action = '';
-                const key = e.key; // Use case-sensitive but check lower for standard keys
-                const keyLower = key.toLowerCase();
-
-                if (keyLower === 'w') action = 'move_forward';
-                else if (keyLower === 's') action = 'move_backward';
-                else if (keyLower === 'a') action = 'turn_left';
-                else if (keyLower === 'd') action = 'turn_right';
-                else if (keyLower === 'q') action = 'look_up';
-                else if (keyLower === 'z') action = 'look_down';
-                else if (key === 'ArrowUp') action = 'look_up';
-                else if (key === 'ArrowDown') action = 'look_down';
-                else if (key === 'ArrowLeft') action = 'turn_left';
-                else if (key === 'ArrowRight') action = 'turn_right';
-                else if (keyLower === 'e') {
-                    console.log("Interact triggered");
-                    triggerInteract();
-                    return;
-                }
-                else if (key === '0') {
-                    console.log("Reset Camera triggered");
-                    resetCamera();
-                    return;
-                }
-                else if (keyLower === 'f') {
-                    console.log("Snap to Floor triggered");
-                    snapToFloor();
-                    return;
-                }
-                else if (key === 'Escape') {
-                    console.log("Exiting Live Control");
-                    exitLiveControl();
-                    return;
-                }
-
-                if (action) {
-                    sendMoveCommand(action);
-                }
-            }
-        }
-
-        function exitLiveControl() {
-            // Remove listener
-            document.removeEventListener('keydown', handleLiveControlKey);
-            document.getElementById('collision-counter').style.display = 'none';
-
-            // Return to Habitat Selection UI
-            document.getElementById('habitat-selection-overlay').style.display = 'flex';
-            photoDisplay.style.display = 'none';
-            placeholder.style.display = 'block';
-
-            // Clear current sub mode state
-            habitatSubMode = null;
-            updateActionButton();
-        }
-
-        async function resetCamera() {
-            try {
-                const res = await fetch('/reset_camera', { method: 'POST' });
-                const data = await res.json();
-                if (data.status === 'success' && data.frame) {
-                    photoDisplay.src = "data:image/jpeg;base64," + data.frame;
-                }
-            } catch (e) { console.error("Reset Camera error:", e); }
-        }
-
-        async function snapToFloor() {
-            try {
-                const res = await fetch('/snap_to_floor', { method: 'POST' });
-                const data = await res.json();
-                if (data.status === 'success' && data.frame) {
-                    photoDisplay.src = "data:image/jpeg;base64," + data.frame;
-                }
-            } catch (e) { console.error("Snap to Floor error:", e); }
-        }
-
-        async function triggerInteract() {
-            try {
-                const formData = new FormData();
-                // No specific body needed for now
-
-                const res = await fetch('/interact', {
-                    method: 'POST',
-                    body: formData
-                });
-                const data = await res.json();
-
-                if (data.status === 'success') {
-                    // Update view if frame returned
-                    if (data.frame) {
-                        const img = document.getElementById('captured-photo');
-                        img.src = 'data:image/jpeg;base64,' + data.frame;
-                        img.style.display = 'block';
-                        video.style.display = 'none';
+                    } else {
+                        alert('Error spawning at starter point: ' + data.message);
                     }
-                    console.log("Interaction success:", data.message);
-                } else {
-                    console.error("Interaction failed:", data.message);
+                } catch (e) {
+                    console.error("Spawn starter error:", e);
+                    alert("Error: " + e);
                 }
-            } catch (e) {
-                console.error("Interaction network error:", e);
             }
-        }
 
-        async function sendMoveCommand(action) {
-            const fd = new FormData();
-            fd.append('command', action);
-            try {
-                // If live video is needed, we might need a faster loop or websocket.
-                // For now, simple fetch response image update.
-                const res = await fetch('/move', { method: 'POST', body: fd });
-                const data = await res.json();
-                if (data.status === 'success' && data.frame) {
-                    // Update video/image feed
-                    // Use captured-photo for frame updates?
-                    photoDisplay.src = "data:image/jpeg;base64," + data.frame;
-                    photoDisplay.style.display = 'block';
-                    placeholder.style.display = 'none';
-                    video.style.display = 'none';
-
-                    if (data.collisions !== undefined) {
-                        const counterDiv = document.getElementById('collision-counter');
-                        if (counterDiv) {
-                            counterDiv.textContent = `Collisions: ${data.collisions}`;
-
-                            // Check if collisions increased and log it
-                            const currentCount = parseInt(counterDiv.dataset.count || "0");
-                            if (data.collisions > currentCount) {
-                                logDebug(`<span style="color:#f44747">Collision Detected! Total: ${data.collisions}</span>`);
-                            }
-                            counterDiv.dataset.count = data.collisions;
-                        }
-                    }
-                }
-            } catch (e) { console.error(e); }
-        }
-
-        async function fetchInitialView() {
-            try {
-                const res = await fetch('/get_view', { method: 'POST' });
-                const data = await res.json();
-                if (data.status === 'success' && data.frame) {
-                    photoDisplay.src = "data:image/jpeg;base64," + data.frame;
-                    photoDisplay.style.display = 'block';
-                    placeholder.style.display = 'none';
-                    video.style.display = 'none';
-                    // Ensure the action button is updated now that we have content
-                    updateActionButton();
-                }
-            } catch (e) { console.error("Failed to fetch initial view:", e); }
-        }
-
-        function handleFileSelect(input, type) {
-            if (input.files && input.files[0]) {
-                const file = input.files[0];
-                const url = URL.createObjectURL(file);
-
+            function startLiveControlView() {
+                // Re-enable controls
+                document.addEventListener('keydown', handleLiveControlKey);
+                video.style.display = 'none';
                 placeholder.style.display = 'none';
+                photoDisplay.style.display = 'block';
 
-                if (type === 'image') {
-                    photoDisplay.src = url;
-                    photoDisplay.style.display = 'block';
-                    video.style.display = 'none';
-                    document.getElementById('photo-info').textContent = "Selected: " + file.name;
-                    document.getElementById('photo-info').style.display = 'block';
-                    currentSourceName = file.name;
-                    updateActionButton();
-                } else if (type === 'video') {
-                    video.src = url;
-                    video.style.display = 'block';
-                    photoDisplay.style.display = 'none';
-                    document.getElementById('video-info').textContent = "Selected: " + file.name;
-                    document.getElementById('video-info').style.display = 'block';
-                    currentSourceName = file.name;
-                    updateActionButton();
-                } else if (type === 'sim') {
-                    currentSourceName = file.name;
-                    const simInfo = document.getElementById('sim-info');
-                    simInfo.textContent = "Selected Sim: " + file.name;
-                    simInfo.style.display = 'block';
-                    placeholder.textContent = `Connected to: ${file.name}`;
-                    updateActionButton();
+                const cc = document.getElementById('collision-counter');
+                cc.style.display = 'block';
+                cc.textContent = 'Collisions: 0';
+                cc.dataset.count = "0";
 
-                    // Proactively try to initialize the sim on the backend
-                    // Note: In a real scenario, we might need to upload the file first
-                    // For now, we'll assume the backend can handle the name or we'll need to update /init_sim
-                    initializeSim(file);
-                }
+                // Fetch initial view
+                // fetchInitialView();
+                // We removed fetchInitialView here because handleMapClick now sets the view.
+                // But if we closed overlay without setting pose (cancel), we might need it.
+                // Let's rely on handleMapClick for the spawn case.
+
+                // Setup Interaction
+                console.log("Live Control Started");
+                logDebug("Live Control Started. Simulator Controls:");
+                logDebug("- W/A/S/D: Move Forward/Left/Back/Right");
+                logDebug("- Q/Z: Look Up/Down");
+                logDebug("- Arrow Keys: Look Up/Down/Left/Right (10°)");
+                logDebug("- E: Interact | F: Snap to Floor | 0: Reset Camera");
+                logDebug("- ESC: Exit Live Control & Return to Menu");
             }
-        }
 
-        function selectSim() {
-            document.getElementById('sim-upload').click();
-        }
+            let habitatSubMode = null;
+            let routePoints = [];
 
-        async function initializeSim(file) {
-            logDebug(`Initializing simulator with ${file.name}...`);
-            const formData = new FormData();
-            formData.append('file', file);
+            function selectHabitatMode(subMode) {
+                habitatSubMode = subMode;
+                document.getElementById('habitat-selection-overlay').style.display = 'none';
 
-            try {
-                const res = await fetch('/init_sim', {
-                    method: 'POST',
-                    body: formData
-                });
-                const data = await res.json();
-                if (data.status === 'success') {
-                    logDebug(`Simulator initialized successfully.`);
-                    if (habitatSubMode === 'live' || habitatSubMode === 'autonomous') {
-                        // fetchInitialView();
-                        showMapSelection();
-                    }
-                } else {
-                    logDebug(`<span style="color:#f44747">Init Failed: ${data.message}</span>`);
-                }
-            } catch (e) {
-                logDebug(`<span style="color:#f44747">Error: ${e}</span>`);
-            }
-        }
+                // Show Sim Browse Area now
+                document.getElementById('sim-browse-area').style.display = 'flex';
 
-        function updateActionButton() {
-            // Only show button if we have content
-            let hasContent = (currentMode === 'photo' && photoDisplay.src && photoDisplay.src !== window.location.href) ||
-                (currentMode === 'video' && video.src && video.src !== window.location.href) ||
-                (currentMode === 'habitat' && currentSourceName !== '');
+                const actionBtn = document.getElementById('action-btn');
+                const tabBtnAuto = document.getElementById('tab-btn-auto');
 
-            actionBtn.style.display = 'block';
+                if (subMode === 'live' || subMode === 'live_one_shot' || subMode === 'autonomous') {
+                    updateActionButton();
+                    actionBtn.style.display = 'block';
+                    actionBtn.onclick = handleAction; // Standard analysis loop
 
-            // Tab Management
-            const tabHeader = document.getElementById('habitat-tab-header');
-            const promptHeader = document.getElementById('prompt-settings-header');
-            const tabBtnAuto = document.getElementById('tab-btn-auto');
-            const tabBtnManual = document.getElementById('tab-btn-manual');
+                    placeholder.innerHTML = "Browse a Sim, then use Simulator Controls:<br>- W/A/S/D: Move | Q/Z & Arrows: Look 10°<br>- E: Interact | F: Snap to Floor | 0: Reset Camera<br>- ESC: Exit Habitat Live Control";
 
-            if (currentMode === 'habitat') {
-                tabHeader.style.display = 'flex';
-                promptHeader.style.display = 'none';
-
-                if (habitatSubMode === 'autonomous') {
-                    tabBtnManual.style.display = 'none';
-                    tabBtnAuto.style.display = 'inline-block';
-                    if (activePromptTab !== 'auto') {
+                    if (subMode === 'live_one_shot') {
+                        // Hide CoT Navigator tab
+                        if (tabBtnAuto) tabBtnAuto.style.display = 'none';
+                        if (tabBtnManual) tabBtnManual.style.display = 'inline-block';
+                        switchPromptTab('manual');
+                        actionBtn.textContent = "Start Sim Analysis";
+                        actionBtn.style.backgroundColor = "rgba(0, 122, 204, 0.8)";
+                        actionBtn.style.color = "white";
+                    } else if (subMode === 'live' || subMode === 'autonomous') {
+                        // Hide Manual Prompt tab for State Transition (live) and Autonomous
+                        if (tabBtnManual) tabBtnManual.style.display = 'none';
+                        if (tabBtnAuto) tabBtnAuto.style.display = 'block';
                         switchPromptTab('auto');
-                        return; // return because switchPromptTab calls updateActionButton
+                    } else {
+                        // Show both tabs by default for other modes
+                        if (tabBtnAuto) tabBtnAuto.style.display = 'block';
+                        if (tabBtnManual) tabBtnManual.style.display = 'block';
                     }
-                } else {
-                    tabBtnManual.style.display = 'inline-block';
-                    tabBtnAuto.style.display = 'inline-block';
+
+                    // Fetch initial view -> CHANGED to Map Selection
+                    if (currentSourceName) {
+                        showMapSelection();
+                    } else {
+                        // Waiting for user to browse sim
+                    }
                 }
-            } else {
-                tabHeader.style.display = 'none';
-                promptHeader.style.display = 'flex';
-                if (activePromptTab === 'auto') {
-                    switchPromptTab('manual');
+
+                updateActionButton(); // Re-evaluate button state based on loaded file
+            }
+
+            function handleRecordVideo() {
+                if (routePoints.length < 2) {
+                    alert("Please draw a route with at least 2 points (Start and End).");
                     return;
                 }
-            }
 
-            if (currentMode === 'photo') {
-                actionBtn.textContent = "Analyze Photo";
-                actionBtn.style.backgroundColor = "rgba(0, 122, 204, 0.8)";
-                actionBtn.style.color = "white";
-            } else if (currentMode === 'habitat') {
-                if (isStreaming) {
-                    actionBtn.textContent = (activePromptTab === 'auto' || habitatSubMode === 'autonomous') ? "Stop Navigation" : "Stop Assistant";
-                    actionBtn.style.backgroundColor = "rgba(204, 0, 0, 0.8)";
-                    actionBtn.style.color = "white";
-                } else {
-                    if (habitatSubMode === 'autonomous') {
-                        actionBtn.textContent = "Start CoT Analysis";
-                    } else {
-                        // Live Control or Initial State
-                        actionBtn.textContent = (activePromptTab === 'auto') ? "Start CoT Analysis" : "Start Sim Analysis";
-                    }
-                    actionBtn.style.backgroundColor = "rgba(230, 190, 0, 0.9)";
-                    actionBtn.style.color = "black";
-                }
-            } else if (currentMode === 'video') {
-                if (isStreaming) {
-                    if (video.paused) {
-                        actionBtn.textContent = "Wait (Paused)";
-                        actionBtn.style.backgroundColor = "rgba(230, 190, 0, 0.9)";
-                        actionBtn.style.color = "black";
-                    } else {
-                        actionBtn.textContent = "Stop Analysis";
-                        actionBtn.style.backgroundColor = "rgba(204, 0, 0, 0.8)";
-                        actionBtn.style.color = "white";
-                    }
-                } else {
-                    actionBtn.textContent = "Start Video Analysis";
-                    actionBtn.style.backgroundColor = "rgba(0, 152, 24, 0.8)";
-                    actionBtn.style.color = "white";
-                }
-            }
-
-            // Dimmed when no content (checks)
-            const fpsControl = document.getElementById('fps-control');
-            const gridControl = document.getElementById('grid-checkbox-container');
-            const heightControl = document.getElementById('height-checkbox-container');
-            const memoryModeControl = document.getElementById('memory-mode-container');
-
-            // Hide memory mode entirely if we are in 'photo' mode
-            if (memoryModeControl) {
-                if (currentMode === 'photo') {
-                    memoryModeControl.style.display = 'none';
-                } else {
-                    memoryModeControl.style.display = 'flex';
-                }
-            }
-
-            // For Habitat Record mode, we need content (sim selected) AND we ignore isStreaming
-            if (!hasContent) {
-                actionBtn.classList.add('btn-dimmed');
-                fpsControl.classList.add('btn-dimmed');
-                gridControl.classList.add('dimmed');
-                heightControl.classList.add('dimmed');
-                if (memoryModeControl) memoryModeControl.classList.add('btn-dimmed');
-
-                document.getElementById('grid-toggle-checkbox').disabled = true;
-                document.getElementById('height-toggle-checkbox').disabled = true;
-                const memModeCb = document.getElementById('memory-mode-checkbox');
-                if (memModeCb) memModeCb.disabled = true;
-            } else {
-                actionBtn.classList.remove('btn-dimmed');
-                fpsControl.classList.remove('btn-dimmed');
-                gridControl.classList.remove('dimmed');
-                heightControl.classList.remove('dimmed');
-
-                document.getElementById('grid-toggle-checkbox').disabled = false;
-                document.getElementById('height-toggle-checkbox').disabled = false;
-
-                const isCustomPrompt = document.getElementById('use-custom-prompt').checked;
-                const memModeCb = document.getElementById('memory-mode-checkbox');
-
-                if (isCustomPrompt) {
-                    if (memoryModeControl) memoryModeControl.classList.remove('btn-dimmed');
-                    if (memModeCb) memModeCb.disabled = false;
-                } else {
-                    if (memoryModeControl) memoryModeControl.classList.add('btn-dimmed');
-                    if (memModeCb) memModeCb.disabled = true;
-                }
-            }
-        }
-
-        function toggleGrid() {
-            const isChecked = document.getElementById('grid-toggle-checkbox').checked;
-            const gridOverlay = document.getElementById('grid-overlay');
-            gridOverlay.style.display = isChecked ? 'block' : 'none';
-            if (isChecked) updateGridOverlay();
-        }
-
-        function updateGridOverlay() {
-            const gridOverlay = document.getElementById('grid-overlay');
-            if (gridOverlay.style.display === 'none') return;
-
-            let activeEl = null;
-            if (currentMode === 'photo' || currentMode === 'habitat') {
-                activeEl = photoDisplay;
-            } else if (currentMode === 'video') {
-                activeEl = video;
-            }
-
-            if (!activeEl || activeEl.offsetParent === null) return;
-
-            // Calculate the actual content box within the 'object-fit: contain' container
-            const containerWidth = activeEl.clientWidth;
-            const containerHeight = activeEl.clientHeight;
-
-            let contentWidth, contentHeight;
-            let intrinsicWidth, intrinsicHeight;
-
-            if (activeEl.tagName === 'IMG') {
-                intrinsicWidth = activeEl.naturalWidth;
-                intrinsicHeight = activeEl.naturalHeight;
-            } else {
-                intrinsicWidth = activeEl.videoWidth;
-                intrinsicHeight = activeEl.videoHeight;
-            }
-
-            if (!intrinsicWidth || !intrinsicHeight) return;
-
-            const containerRatio = containerWidth / containerHeight;
-            const contentRatio = intrinsicWidth / intrinsicHeight;
-
-            if (containerRatio > contentRatio) {
-                contentHeight = containerHeight;
-                contentWidth = containerHeight * contentRatio;
-            } else {
-                contentWidth = containerWidth;
-                contentHeight = containerWidth / contentRatio;
-            }
-
-            const left = (containerWidth - contentWidth) / 2;
-            const top = (containerHeight - contentHeight) / 2;
-
-            gridOverlay.style.width = `${contentWidth}px`;
-            gridOverlay.style.height = `${contentHeight}px`;
-            gridOverlay.style.left = `${activeEl.offsetLeft + left}px`;
-            gridOverlay.style.top = `${activeEl.offsetTop + top}px`;
-        }
-
-        window.addEventListener('resize', updateGridOverlay);
-        video.addEventListener('loadedmetadata', updateGridOverlay);
-        photoDisplay.addEventListener('load', updateGridOverlay);
-
-        let currentHeightOffset = 0.0;
-        let isHeightLocked = false;
-
-        async function loadHeightSettings() {
-            try {
-                const res = await fetch('/get_settings');
-                const data = await res.json();
-                currentHeightOffset = data.height || 0.0;
-                const checkbox = document.getElementById('height-toggle-checkbox');
-                checkbox.checked = data.height_lock || false;
-                updateHeightLabel();
-            } catch (e) { }
-        }
-
-        function updateHeightLabel() {
-            document.getElementById('height-label').textContent = `Height: ${currentHeightOffset.toFixed(1)}m`;
-        }
-
-        function toggleHeightControl() {
-            const isChecked = document.getElementById('height-toggle-checkbox').checked;
-            isHeightLocked = isChecked;
-            saveHeightSettings();
-        }
-
-        let isUpdatingHeight = false;
-        async function saveHeightSettings() {
-            if (isUpdatingHeight) return;
-            isUpdatingHeight = true;
-
-            const formData = new FormData();
-            formData.append('height', currentHeightOffset);
-            formData.append('locked', document.getElementById('height-toggle-checkbox').checked);
-
-            try {
-                const res = await fetch('/update_height', { method: 'POST', body: formData });
-                const data = await res.json();
-
-                if (data.status === 'success' && data.frame) {
-                    photoDisplay.src = "data:image/jpeg;base64," + data.frame;
-                    photoDisplay.style.display = 'block';
-                    placeholder.style.display = 'none';
-                    updateGridOverlay();
-                    console.log("Height updated visually:", data.message);
-                }
-            } catch (e) {
-                console.error("Failed to update height:", e);
-            } finally {
-                isUpdatingHeight = false;
-            }
-        }
-
-        window.addEventListener('keydown', function (e) {
-            if (!document.getElementById('height-toggle-checkbox').checked) return;
-            if (currentMode !== 'habitat') return; // Only in habitat mode
-
-            const isNumLockOn = e.getModifierState("NumLock");
-            if (!isNumLockOn) return;
-
-            let changed = false;
-            // Numpad 2 (Down), Numpad 8 (Up)
-            if (e.code === "Numpad2") {
-                currentHeightOffset -= 0.1;
-                changed = true;
-            } else if (e.code === "Numpad8") {
-                currentHeightOffset += 0.1;
-                changed = true;
-            }
-
-            if (changed) {
-                e.preventDefault();
-                // Clamp between -1.2m and 1.0m (updated max to 1.0m)
-                currentHeightOffset = Math.max(-1.2, Math.min(1.0, currentHeightOffset));
-                updateHeightLabel();
-                // Use a small delay/debounce if they hold the key? 
-                // For now, saveHeightSettings has its own lock.
-                saveHeightSettings();
-            }
-        });
-
-        document.addEventListener('DOMContentLoaded', function () {
-            loadHeightSettings();
-        });
-
-        async function getProcessedBlob(originalBlob) {
-            const isGridEnabled = document.getElementById('grid-toggle-checkbox').checked;
-            if (!isGridEnabled) return originalBlob;
-
-            return new Promise((resolve) => {
-                const img = new Image();
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0);
-
-                    // Draw 3x3 Grid
-                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-                    ctx.lineWidth = 2; // Visible for VLM
-
-                    // Vertical lines
-                    ctx.beginPath();
-                    ctx.moveTo(canvas.width / 3, 0); ctx.lineTo(canvas.width / 3, canvas.height);
-                    ctx.moveTo(2 * canvas.width / 3, 0); ctx.lineTo(2 * canvas.width / 3, canvas.height);
-                    // Horizontal lines
-                    ctx.moveTo(0, canvas.height / 3); ctx.lineTo(canvas.width, canvas.height / 3);
-                    ctx.moveTo(0, 2 * canvas.height / 3); ctx.lineTo(canvas.width, 2 * canvas.height / 3);
-                    ctx.stroke();
-
-                    canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.9);
-                };
-                img.src = URL.createObjectURL(originalBlob);
-            });
-        }
-
-        function handleAction() {
-            if (currentMode === 'photo') {
-                analyzePhoto();
-            } else if (currentMode === 'habitat' && (habitatSubMode === 'live' || habitatSubMode === 'autonomous')) {
-                if (activePromptTab === 'auto') {
-                    toggleAutonomousStream();
-                } else {
-                    toggleStream();
-                }
-            } else {
-                toggleStream();
-            }
-        }
-
-        let autonavEventSource = null;
-
-        async function toggleAutonomousStream() {
-            const btn = document.getElementById('action-btn');
-            const cotOverlay = document.getElementById('cot-overlay');
-            const cotContent = document.getElementById('cot-content');
-
-            if (isStreaming) {
-                // STOP
-                fetch('/stop_autonomous_navigate', { method: 'POST' });
-                if (autonavEventSource) {
-                    autonavEventSource.close();
-                    autonavEventSource = null;
-                }
-                isStreaming = false;
-                btn.textContent = habitatSubMode === 'autonomous' ? "Start Navigation" : "Start CoT Assistant";
-                btn.style.backgroundColor = "rgba(230, 190, 0, 0.9)";
-                btn.style.color = "black";
-                cotOverlay.style.border = "1px solid #444";
-                document.getElementById('cot-state').textContent = "STOPPED";
-                document.getElementById('cot-state').style.backgroundColor = "#555";
-            } else {
-                // START
-                cotContent.innerHTML = '';
-                cotOverlay.style.display = 'block';
-                cotOverlay.style.border = "1px solid #007acc";
-                document.getElementById('cot-state').textContent = "RUNNING";
-                document.getElementById('cot-state').style.backgroundColor = "#007acc";
-
-                const formData = new FormData();
-                formData.append('goal', document.getElementById('autonav-target').value);
-                formData.append('initial_state', document.getElementById('autonav-initial-state').value);
-                formData.append('device_choice', selectedDevice);
-                formData.append('execute_cmds', habitatSubMode === 'autonomous' ? "true" : "false");
-                if (selectedModel) formData.append('model_choice', selectedModel);
-
-                // Send prompts for CURRENT scenario
-                const s = scenarios[currentScenario] || scenarios['scenario1'];
-                formData.append('core_prompt', s.core);
-                formData.append('searching_prompt', s.searching);
-                formData.append('navigating_prompt', s.navigating);
-                formData.append('recovering_prompt', s.recovering);
-
+                const btn = document.getElementById('action-btn');
                 btn.disabled = true;
-                btn.textContent = "Starting...";
+                btn.textContent = "Recording...";
+
+                // Prepare points
+                const pointsStr = routePoints.map(p => `${p.x},${p.y},0`).join(';'); // Backend expects x,y or x,y,z? 
+                // Wait, the backend generate_video expects start_point and end_point as "x,y,z".
+                // We need to clarify if it supports a full path. 
+                // The specific request says: "fix angle ile cizilen rotada hareket eden robotun gozunden olan video kaybedilmeli"
+                // My backend currently only supports start/end. I will need to update backend too. 
+                // For now, let's send what we can.
+
+                // Actually, 3D points from 2D canvas click is hard without a top-down map calibration.
+                // Placeholder: We will just trigger the backend generation with random points or if we had a map.
+                // Since we don't have a map, clicks on a blank screen are meaningless for coordinates.
+                // BUT, the user asked to "draw a route". 
+                // I will implement the UI interaction now, and we will mock the coordinates or improve backend 
+                // to generated a random valid path if coordinates are not map-relative.
+
+                // Let's assume for now we just trigger the generation as before but with "Record" UI.
+
+                generateVideoFromRoute();
+            }
+
+            async function generateVideoFromRoute() {
+                // ... call backend
+                // Reusing existing generate_video for now, will improve in next step
+                const formData = new FormData();
+                // formData.append('points', JSON.stringify(routePoints)); // Future
 
                 try {
-                    const startRes = await fetch('/start_autonomous_navigate', {
-                        method: 'POST', body: formData
-                    });
-                    const startData = await startRes.json();
-                    if (startData.status !== 'success') {
-                        alert("Could not start: " + startData.message);
-                        btn.disabled = false;
-                        cotOverlay.style.display = 'none';
+                    const res = await fetch('/generate_video', { method: 'POST', body: formData });
+                    const data = await res.json();
+                    if (data.status === 'success') {
+                        // Auto play result
+                        video.src = data.video_url;
+                        video.style.display = 'block';
+                        placeholder.style.display = 'none';
+                        document.getElementById('route-canvas').style.display = 'none'; // Hide drawing
+                    } else {
+                        alert("Error: " + data.message);
+                    }
+                } catch (e) {
+                    alert("Error: " + e);
+                }
+
+                const btn = document.getElementById('action-btn');
+                btn.disabled = false;
+                btn.textContent = "Record Video";
+            }
+
+            // Route Drawing Interactions
+            const rc = document.getElementById('route-canvas');
+            rc.addEventListener('click', (e) => {
+                if (habitatSubMode !== 'record') return;
+
+                const rect = rc.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                // Visual feedback
+                const ctx = rc.getContext('2d');
+                ctx.fillStyle = '#007acc';
+                ctx.beginPath();
+                ctx.arc(x, y, 5, 0, Math.PI * 2);
+                ctx.fill();
+
+                if (routePoints.length > 0) {
+                    const last = routePoints[routePoints.length - 1];
+                    ctx.strokeStyle = '#007acc';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(last.visX, last.visY); // Use visual coords
+                    ctx.lineTo(x, y);
+                    ctx.stroke();
+                }
+
+                // Store normalized or visual coords? 
+                // Without map, visual is all we have. 
+                routePoints.push({ visX: x, visY: y, x: x / rect.width, y: y / rect.height });
+            });
+
+            function handleLiveControlKey(e) {
+                if (currentMode === 'habitat' && !isStreaming) {
+                    // Determine action
+                    let action = '';
+                    const key = e.key; // Use case-sensitive but check lower for standard keys
+                    const keyLower = key.toLowerCase();
+
+                    if (keyLower === 'w') action = 'move_forward';
+                    else if (keyLower === 's') action = 'move_backward';
+                    else if (keyLower === 'a') action = 'turn_left';
+                    else if (keyLower === 'd') action = 'turn_right';
+                    else if (keyLower === 'q') action = 'look_up';
+                    else if (keyLower === 'z') action = 'look_down';
+                    else if (key === 'ArrowUp') action = 'look_up';
+                    else if (key === 'ArrowDown') action = 'look_down';
+                    else if (key === 'ArrowLeft') action = 'turn_left';
+                    else if (key === 'ArrowRight') action = 'turn_right';
+                    else if (keyLower === 'e') {
+                        console.log("Interact triggered");
+                        triggerInteract();
+                        return;
+                    }
+                    else if (key === '0') {
+                        console.log("Reset Camera triggered");
+                        resetCamera();
+                        return;
+                    }
+                    else if (keyLower === 'f') {
+                        console.log("Snap to Floor triggered");
+                        snapToFloor();
+                        return;
+                    }
+                    else if (key === 'Escape') {
+                        console.log("Exiting Live Control");
+                        exitLiveControl();
                         return;
                     }
 
-                    isStreaming = true;
-                    btn.disabled = false;
-                    btn.textContent = habitatSubMode === 'autonomous' ? "Stop Navigation" : "Stop Assistant";
-                    btn.style.backgroundColor = "rgba(204, 0, 0, 0.8)";
-                    btn.style.color = "white";
+                    if (action) {
+                        sendMoveCommand(action);
+                    }
+                }
+            }
 
-                    logDebug("Starting AutonomousNavigator Stream...");
+            function exitLiveControl() {
+                // Remove listener
+                document.removeEventListener('keydown', handleLiveControlKey);
+                document.getElementById('collision-counter').style.display = 'none';
 
-                    autonavEventSource = new EventSource('/autonomous_navigate_stream');
+                // Return to Habitat Selection UI
+                document.getElementById('habitat-selection-overlay').style.display = 'flex';
+                photoDisplay.style.display = 'none';
+                placeholder.style.display = 'block';
 
-                    autonavEventSource.onmessage = function (event) {
-                        try {
-                            const data = JSON.parse(event.data);
-                            if (data.type === 'log') {
-                                // Add to CoT View
-                                cotContent.innerHTML += `<div style="color: #9cdcfe; margin-top: 8px;">[System] ${data.data}</div>`;
-                                // Add to Result Log
-                                logDebug(`[AutoNav] ${data.data}`);
-                            } else if (data.type === 'reasoning_chunk') {
-                                cotContent.innerHTML += `<span>${data.data} </span>`;
-                                // Scroll CoT
-                                cotOverlay.scrollTop = cotOverlay.scrollHeight;
-                            } else if (data.type === 'state_update') {
-                                const stateEl = document.getElementById('cot-state');
-                                const state = data.data.state;
-                                stateEl.textContent = state;
+                // Clear current sub mode state
+                habitatSubMode = null;
+                updateActionButton();
+            }
 
-                                // Dynamic Styling
-                                if (state === 'SEARCHING') {
-                                    stateEl.style.backgroundColor = '#d19a66'; // Orange-ish
-                                } else if (state === 'NAVIGATING') {
-                                    stateEl.style.backgroundColor = '#98c379'; // Green
-                                } else if (state === 'RECOVERING') {
-                                    stateEl.style.backgroundColor = '#e06c75'; // Red
-                                } else {
-                                    stateEl.style.backgroundColor = '#007acc'; // Default Blue
-                                }
+            async function resetCamera() {
+                try {
+                    const res = await fetch('/reset_camera', { method: 'POST' });
+                    const data = await res.json();
+                    if (data.status === 'success' && data.frame) {
+                        photoDisplay.src = "data:image/jpeg;base64," + data.frame;
+                    }
+                } catch (e) { console.error("Reset Camera error:", e); }
+            }
 
-                                cotContent.innerHTML += `<div style="border-top: 1px dashed #555; margin-top: 10px; padding-top: 10px; opacity: 0.6;"></div>`;
-                            } else if (data.type === 'error') {
-                                cotContent.innerHTML += `<div style="color: #f44747; margin-top: 8px;">[Error] ${data.data}</div>`;
-                                logDebug(`<span style="color:#f44747">[AutoNav Error] ${data.data}</span>`);
-                            } else if (data.type === 'frame_update') {
-                                // Received a base64 frame update from an action
-                                photoDisplay.src = "data:image/jpeg;base64," + data.data;
-                            } else if (data.type === 'stopped') {
-                                toggleAutonomousStream(); // Triggers the stop block
-                            }
-                            cotOverlay.scrollTop = cotOverlay.scrollHeight;
-                        } catch (e) {
-                            console.error("Parse Error in SSE:", e);
+            async function snapToFloor() {
+                try {
+                    const res = await fetch('/snap_to_floor', { method: 'POST' });
+                    const data = await res.json();
+                    if (data.status === 'success' && data.frame) {
+                        photoDisplay.src = "data:image/jpeg;base64," + data.frame;
+                    }
+                } catch (e) { console.error("Snap to Floor error:", e); }
+            }
+
+            async function triggerInteract() {
+                try {
+                    const formData = new FormData();
+                    // No specific body needed for now
+
+                    const res = await fetch('/interact', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await res.json();
+
+                    if (data.status === 'success') {
+                        // Update view if frame returned
+                        if (data.frame) {
+                            const img = document.getElementById('captured-photo');
+                            img.src = 'data:image/jpeg;base64,' + data.frame;
+                            img.style.display = 'block';
+                            video.style.display = 'none';
                         }
-                    };
+                        console.log("Interaction success:", data.message);
+                    } else {
+                        console.error("Interaction failed:", data.message);
+                    }
+                } catch (e) {
+                    console.error("Interaction network error:", e);
+                }
+            }
 
-                    autonavEventSource.onerror = function () {
-                        if (isStreaming) {
-                            toggleAutonomousStream();
-                            logDebug(`<span style="color:#f44747">[AutoNav] Stream disconnected.</span>`);
+            async function sendMoveCommand(action) {
+                const fd = new FormData();
+                fd.append('command', action);
+                try {
+                    // If live video is needed, we might need a faster loop or websocket.
+                    // For now, simple fetch response image update.
+                    const res = await fetch('/move', { method: 'POST', body: fd });
+                    const data = await res.json();
+                    if (data.status === 'success' && data.frame) {
+                        // Update video/image feed
+                        // Use captured-photo for frame updates?
+                        photoDisplay.src = "data:image/jpeg;base64," + data.frame;
+                        photoDisplay.style.display = 'block';
+                        placeholder.style.display = 'none';
+                        video.style.display = 'none';
+
+                        if (data.collisions !== undefined) {
+                            const counterDiv = document.getElementById('collision-counter');
+                            if (counterDiv) {
+                                counterDiv.textContent = `Collisions: ${data.collisions}`;
+
+                                // Check if collisions increased and log it
+                                const currentCount = parseInt(counterDiv.dataset.count || "0");
+                                if (data.collisions > currentCount) {
+                                    logDebug(`<span style="color:#f44747">Collision Detected! Total: ${data.collisions}</span>`);
+                                }
+                                counterDiv.dataset.count = data.collisions;
+                            }
                         }
                     }
+                } catch (e) { console.error(e); }
+            }
 
-                } catch (e) {
-                    alert("Error starting stream: " + e);
-                    btn.disabled = false;
+            async function fetchInitialView() {
+                try {
+                    const res = await fetch('/get_view', { method: 'POST' });
+                    const data = await res.json();
+                    if (data.status === 'success' && data.frame) {
+                        photoDisplay.src = "data:image/jpeg;base64," + data.frame;
+                        photoDisplay.style.display = 'block';
+                        placeholder.style.display = 'none';
+                        video.style.display = 'none';
+                        // Ensure the action button is updated now that we have content
+                        updateActionButton();
+                    }
+                } catch (e) { console.error("Failed to fetch initial view:", e); }
+            }
+
+            function handleFileSelect(input, type) {
+                if (input.files && input.files[0]) {
+                    const file = input.files[0];
+                    const url = URL.createObjectURL(file);
+
+                    placeholder.style.display = 'none';
+
+                    if (type === 'image') {
+                        photoDisplay.src = url;
+                        photoDisplay.style.display = 'block';
+                        video.style.display = 'none';
+                        document.getElementById('photo-info').textContent = "Selected: " + file.name;
+                        document.getElementById('photo-info').style.display = 'block';
+                        currentSourceName = file.name;
+                        updateActionButton();
+                    } else if (type === 'video') {
+                        video.src = url;
+                        video.style.display = 'block';
+                        photoDisplay.style.display = 'none';
+                        document.getElementById('video-info').textContent = "Selected: " + file.name;
+                        document.getElementById('video-info').style.display = 'block';
+                        currentSourceName = file.name;
+                        updateActionButton();
+                    } else if (type === 'sim') {
+                        currentSourceName = file.name;
+                        const simInfo = document.getElementById('sim-info');
+                        simInfo.textContent = "Selected Sim: " + file.name;
+                        simInfo.style.display = 'block';
+                        placeholder.textContent = `Connected to: ${file.name}`;
+                        updateActionButton();
+
+                        // Proactively try to initialize the sim on the backend
+                        // Note: In a real scenario, we might need to upload the file first
+                        // For now, we'll assume the backend can handle the name or we'll need to update /init_sim
+                        initializeSim(file);
+                    }
                 }
             }
-        }
 
-        async function analyzeSimSnapshot() {
-            if (currentMode !== 'habitat') return;
-
-            // PhotoDisplay holds the current base64 frame from simulator
-            const base64Data = photoDisplay.src.split(',')[1];
-            if (!base64Data) {
-                logDebug(`<span style="color:#f44747">Error: No frame to analyze.</span>`);
-                return;
+            function selectSim() {
+                document.getElementById('sim-upload').click();
             }
 
-            // Convert base64 to Blob
-            const byteCharacters = atob(base64Data);
-            const byteNumbers = new Array(byteCharacters.length);
-            for (let i = 0; i < byteCharacters.length; i++) {
-                byteNumbers[i] = byteCharacters.charCodeAt(i);
-            }
-            const byteArray = new Uint8Array(byteNumbers);
-            const originalBlob = new Blob([byteArray], { type: 'image/jpeg' });
-
-            logDebug("Capturing simulator snapshot for analysis...");
-
-            const blobToSend = await getProcessedBlob(originalBlob);
-
-            // Send to backend asynchronously without awaiting so UI doesn't freeze
-            sendFileToBackend(blobToSend).catch(e => {
-                console.error("Async analysis error:", e);
-                logDebug(`<span style="color:#f44747">Async Error: ${e}</span>`);
-            });
-        }
-
-
-
-        function togglePromptInput() {
-            const isCustom = document.getElementById('use-custom-prompt').checked;
-            if (isCustom) {
-                promptInput.disabled = false;
-                promptInput.classList.add('active');
-                if (!promptInput.value || promptInput.value === BASE_PROMPT) {
-                    promptInput.focus();
-                }
-            } else {
-                promptInput.disabled = true;
-                promptInput.classList.remove('active');
-                promptInput.value = BASE_PROMPT; // Always revert to base
-            }
-            updateButtonStates();
-        }
-
-        async function savePrompt() {
-            const content = promptInput.value;
-            const name = prompt("Enter a name for this prompt (will be saved in /core prompts):");
-            if (name) {
+            async function initializeSim(file) {
+                logDebug(`Initializing simulator with ${file.name}...`);
                 const formData = new FormData();
-                formData.append('name', name);
-                formData.append('content', content);
+                formData.append('file', file);
 
                 try {
-                    const res = await fetch('/save_prompt', {
+                    const res = await fetch('/init_sim', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await res.json();
+                    if (data.status === 'success') {
+                        logDebug(`Simulator initialized successfully.`);
+                        if (habitatSubMode === 'live' || habitatSubMode === 'live_one_shot' || habitatSubMode === 'autonomous') {
+                            // fetchInitialView();
+                            showMapSelection();
+                        }
+                    } else {
+                        logDebug(`<span style="color:#f44747">Init Failed: ${data.message}</span>`);
+                    }
+                } catch (e) {
+                    logDebug(`<span style="color:#f44747">Error: ${e}</span>`);
+                }
+            }
+
+            function updateActionButton() {
+                // Only show button if we have content
+                let hasContent = (currentMode === 'photo' && photoDisplay.src && photoDisplay.src !== window.location.href) ||
+                    (currentMode === 'video' && video.src && video.src !== window.location.href) ||
+                    (currentMode === 'habitat' && currentSourceName !== '');
+
+                actionBtn.style.display = 'block';
+
+                // Tab Management
+                const tabHeader = document.getElementById('habitat-tab-header');
+                const promptHeader = document.getElementById('prompt-settings-header');
+                const tabBtnAuto = document.getElementById('tab-btn-auto');
+                const tabBtnManual = document.getElementById('tab-btn-manual');
+
+                if (currentMode === 'habitat') {
+                    tabHeader.style.display = 'flex';
+                    promptHeader.style.display = 'none';
+
+                    if (habitatSubMode === 'autonomous' || habitatSubMode === 'live') {
+                        tabBtnManual.style.display = 'none';
+                        tabBtnAuto.style.display = 'inline-block';
+                        if (activePromptTab !== 'auto') {
+                            switchPromptTab('auto');
+                            return; // return because switchPromptTab calls updateActionButton
+                        }
+                    } else if (habitatSubMode === 'live_one_shot') {
+                        tabBtnManual.style.display = 'inline-block';
+                        tabBtnAuto.style.display = 'none';
+                        if (activePromptTab !== 'manual') {
+                            switchPromptTab('manual');
+                            return;
+                        }
+                    } else {
+                        tabBtnManual.style.display = 'inline-block';
+                        tabBtnAuto.style.display = 'inline-block';
+                    }
+                } else {
+                    tabHeader.style.display = 'none';
+                    promptHeader.style.display = 'flex';
+                    if (activePromptTab === 'auto') {
+                        switchPromptTab('manual');
+                        return;
+                    }
+                }
+
+                if (currentMode === 'photo') {
+                    actionBtn.textContent = "Analyze Photo";
+                    actionBtn.style.backgroundColor = "rgba(0, 122, 204, 0.8)";
+                    actionBtn.style.color = "white";
+                } else if (currentMode === 'habitat') {
+                    if (isStreaming) {
+                        actionBtn.textContent = (activePromptTab === 'auto' || habitatSubMode === 'autonomous') ? "Stop Navigation" : "Stop Assistant";
+                        actionBtn.style.backgroundColor = "rgba(204, 0, 0, 0.8)";
+                        actionBtn.style.color = "white";
+                    } else {
+                        if (habitatSubMode === 'autonomous') {
+                            actionBtn.textContent = "Start CoT Analysis";
+                            actionBtn.style.backgroundColor = "rgba(230, 190, 0, 0.9)";
+                            actionBtn.style.color = "black";
+                        } else if (habitatSubMode === 'live_one_shot') {
+                            actionBtn.textContent = "Start Sim Analysis";
+                            actionBtn.style.backgroundColor = "rgba(0, 122, 204, 0.8)";
+                            actionBtn.style.color = "white";
+                        } else {
+                            // Live Control (State Transition) or Initial State
+                            actionBtn.textContent = (activePromptTab === 'auto') ? "Start CoT Analysis" : "Start Sim Analysis";
+                            actionBtn.style.backgroundColor = "rgba(230, 190, 0, 0.9)";
+                            actionBtn.style.color = "black";
+                        }
+                    }
+                } else if (currentMode === 'video') {
+                    if (isStreaming) {
+                        if (video.paused) {
+                            actionBtn.textContent = "Wait (Paused)";
+                            actionBtn.style.backgroundColor = "rgba(230, 190, 0, 0.9)";
+                            actionBtn.style.color = "black";
+                        } else {
+                            actionBtn.textContent = "Stop Analysis";
+                            actionBtn.style.backgroundColor = "rgba(204, 0, 0, 0.8)";
+                            actionBtn.style.color = "white";
+                        }
+                    } else {
+                        actionBtn.textContent = "Start Video Analysis";
+                        actionBtn.style.backgroundColor = "rgba(0, 152, 24, 0.8)";
+                        actionBtn.style.color = "white";
+                    }
+                }
+
+                // Dimmed when no content (checks)
+                const fpsControl = document.getElementById('fps-control');
+                const gridControl = document.getElementById('grid-checkbox-container');
+                const heightControl = document.getElementById('height-checkbox-container');
+                const memoryModeControl = document.getElementById('memory-mode-container');
+
+                // Hide memory mode entirely if we are in 'photo' mode
+                if (memoryModeControl) {
+                    if (currentMode === 'photo') {
+                        memoryModeControl.style.display = 'none';
+                    } else {
+                        memoryModeControl.style.display = 'flex';
+                    }
+                }
+
+                // For Habitat Record mode, we need content (sim selected) AND we ignore isStreaming
+                if (!hasContent) {
+                    actionBtn.classList.add('btn-dimmed');
+                    fpsControl.classList.add('btn-dimmed');
+                    gridControl.classList.add('dimmed');
+                    heightControl.classList.add('dimmed');
+                    if (memoryModeControl) memoryModeControl.classList.add('btn-dimmed');
+
+                    document.getElementById('grid-toggle-checkbox').disabled = true;
+                    document.getElementById('height-toggle-checkbox').disabled = true;
+                    const memModeCb = document.getElementById('memory-mode-checkbox');
+                    if (memModeCb) memModeCb.disabled = true;
+                } else {
+                    actionBtn.classList.remove('btn-dimmed');
+                    fpsControl.classList.remove('btn-dimmed');
+                    gridControl.classList.remove('dimmed');
+                    heightControl.classList.remove('dimmed');
+
+                    document.getElementById('grid-toggle-checkbox').disabled = false;
+                    document.getElementById('height-toggle-checkbox').disabled = false;
+
+                    const isCustomPrompt = document.getElementById('use-custom-prompt').checked;
+                    const memModeCb = document.getElementById('memory-mode-checkbox');
+
+                    if (isCustomPrompt) {
+                        if (memoryModeControl) memoryModeControl.classList.remove('btn-dimmed');
+                        if (memModeCb) memModeCb.disabled = false;
+                    } else {
+                        if (memoryModeControl) memoryModeControl.classList.add('btn-dimmed');
+                        if (memModeCb) memModeCb.disabled = true;
+                    }
+                }
+            }
+
+            function toggleGrid() {
+                const isChecked = document.getElementById('grid-toggle-checkbox').checked;
+                const gridOverlay = document.getElementById('grid-overlay');
+                gridOverlay.style.display = isChecked ? 'block' : 'none';
+                if (isChecked) updateGridOverlay();
+            }
+
+            function updateGridOverlay() {
+                const gridOverlay = document.getElementById('grid-overlay');
+                if (gridOverlay.style.display === 'none') return;
+
+                let activeEl = null;
+                if (currentMode === 'photo' || currentMode === 'habitat') {
+                    activeEl = photoDisplay;
+                } else if (currentMode === 'video') {
+                    activeEl = video;
+                }
+
+                if (!activeEl || activeEl.offsetParent === null) return;
+
+                // Calculate the actual content box within the 'object-fit: contain' container
+                const containerWidth = activeEl.clientWidth;
+                const containerHeight = activeEl.clientHeight;
+
+                let contentWidth, contentHeight;
+                let intrinsicWidth, intrinsicHeight;
+
+                if (activeEl.tagName === 'IMG') {
+                    intrinsicWidth = activeEl.naturalWidth;
+                    intrinsicHeight = activeEl.naturalHeight;
+                } else {
+                    intrinsicWidth = activeEl.videoWidth;
+                    intrinsicHeight = activeEl.videoHeight;
+                }
+
+                if (!intrinsicWidth || !intrinsicHeight) return;
+
+                const containerRatio = containerWidth / containerHeight;
+                const contentRatio = intrinsicWidth / intrinsicHeight;
+
+                if (containerRatio > contentRatio) {
+                    contentHeight = containerHeight;
+                    contentWidth = containerHeight * contentRatio;
+                } else {
+                    contentWidth = containerWidth;
+                    contentHeight = containerWidth / contentRatio;
+                }
+
+                const left = (containerWidth - contentWidth) / 2;
+                const top = (containerHeight - contentHeight) / 2;
+
+                gridOverlay.style.width = `${contentWidth}px`;
+                gridOverlay.style.height = `${contentHeight}px`;
+                gridOverlay.style.left = `${activeEl.offsetLeft + left}px`;
+                gridOverlay.style.top = `${activeEl.offsetTop + top}px`;
+            }
+
+            window.addEventListener('resize', updateGridOverlay);
+            video.addEventListener('loadedmetadata', updateGridOverlay);
+            photoDisplay.addEventListener('load', updateGridOverlay);
+
+            let currentHeightOffset = 0.0;
+            let isHeightLocked = false;
+
+            async function loadHeightSettings() {
+                try {
+                    const res = await fetch('/get_settings');
+                    const data = await res.json();
+                    currentHeightOffset = data.height || 0.0;
+                    const checkbox = document.getElementById('height-toggle-checkbox');
+                    checkbox.checked = data.height_lock || false;
+                    updateHeightLabel();
+                } catch (e) { }
+            }
+
+            function updateHeightLabel() {
+                document.getElementById('height-label').textContent = `Height: ${currentHeightOffset.toFixed(1)}m`;
+            }
+
+            function toggleHeightControl() {
+                const isChecked = document.getElementById('height-toggle-checkbox').checked;
+                isHeightLocked = isChecked;
+                saveHeightSettings();
+            }
+
+            let isUpdatingHeight = false;
+            async function saveHeightSettings() {
+                if (isUpdatingHeight) return;
+                isUpdatingHeight = true;
+
+                const formData = new FormData();
+                formData.append('height', currentHeightOffset);
+                formData.append('locked', document.getElementById('height-toggle-checkbox').checked);
+
+                try {
+                    const res = await fetch('/update_height', { method: 'POST', body: formData });
+                    const data = await res.json();
+
+                    if (data.status === 'success' && data.frame) {
+                        photoDisplay.src = "data:image/jpeg;base64," + data.frame;
+                        photoDisplay.style.display = 'block';
+                        placeholder.style.display = 'none';
+                        updateGridOverlay();
+                        console.log("Height updated visually:", data.message);
+                    }
+                } catch (e) {
+                    console.error("Failed to update height:", e);
+                } finally {
+                    isUpdatingHeight = false;
+                }
+            }
+
+            window.addEventListener('keydown', function (e) {
+                if (!document.getElementById('height-toggle-checkbox').checked) return;
+                if (currentMode !== 'habitat') return; // Only in habitat mode
+
+                const isNumLockOn = e.getModifierState("NumLock");
+                if (!isNumLockOn) return;
+
+                let changed = false;
+                // Numpad 2 (Down), Numpad 8 (Up)
+                if (e.code === "Numpad2") {
+                    currentHeightOffset -= 0.1;
+                    changed = true;
+                } else if (e.code === "Numpad8") {
+                    currentHeightOffset += 0.1;
+                    changed = true;
+                }
+
+                if (changed) {
+                    e.preventDefault();
+                    // Clamp between -1.2m and 1.0m (updated max to 1.0m)
+                    currentHeightOffset = Math.max(-1.2, Math.min(1.0, currentHeightOffset));
+                    updateHeightLabel();
+                    // Use a small delay/debounce if they hold the key? 
+                    // For now, saveHeightSettings has its own lock.
+                    saveHeightSettings();
+                }
+            });
+
+            document.addEventListener('DOMContentLoaded', function () {
+                loadHeightSettings();
+            });
+
+            async function getProcessedBlob(originalBlob) {
+                const isGridEnabled = document.getElementById('grid-toggle-checkbox').checked;
+                if (!isGridEnabled) return originalBlob;
+
+                return new Promise((resolve) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0);
+
+                        // Draw 3x3 Grid
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+                        ctx.lineWidth = 2; // Visible for VLM
+
+                        // Vertical lines
+                        ctx.beginPath();
+                        ctx.moveTo(canvas.width / 3, 0); ctx.lineTo(canvas.width / 3, canvas.height);
+                        ctx.moveTo(2 * canvas.width / 3, 0); ctx.lineTo(2 * canvas.width / 3, canvas.height);
+                        // Horizontal lines
+                        ctx.moveTo(0, canvas.height / 3); ctx.lineTo(canvas.width, canvas.height / 3);
+                        ctx.moveTo(0, 2 * canvas.height / 3); ctx.lineTo(canvas.width, 2 * canvas.height / 3);
+                        ctx.stroke();
+
+                        canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.9);
+                    };
+                    img.src = URL.createObjectURL(originalBlob);
+                });
+            }
+
+            function handleAction() {
+                if (currentMode === 'photo') {
+                    analyzePhoto();
+                } else if (currentMode === 'habitat' && (habitatSubMode === 'live' || habitatSubMode === 'live_one_shot' || habitatSubMode === 'autonomous')) {
+                    if (habitatSubMode === 'live_one_shot') {
+                        // Single analysis step for one-shot mode
+                        triggerAnalysisStep();
+                    } else if (activePromptTab === 'auto') {
+                        if (currentAutomationMode === 'manual') {
+                            analyzeSimSnapshot();
+                        } else {
+                            toggleAutonomousStream();
+                        }
+                    } else {
+                        toggleStream();
+                    }
+                } else {
+                    toggleStream();
+                }
+            }
+
+            let autonavEventSource = null;
+
+            async function toggleAutonomousStream() {
+                const btn = document.getElementById('action-btn');
+                const cotOverlay = document.getElementById('cot-overlay');
+                const cotContent = document.getElementById('cot-content');
+
+                if (isStreaming) {
+                    // STOP
+                    fetch('/stop_autonomous_navigate', { method: 'POST' });
+                    if (autonavEventSource) {
+                        autonavEventSource.close();
+                        autonavEventSource = null;
+                    }
+                    isStreaming = false;
+                    btn.textContent = habitatSubMode === 'autonomous' ? "Start Navigation" : "Start CoT Assistant";
+                    btn.style.backgroundColor = "rgba(230, 190, 0, 0.9)";
+                    btn.style.color = "black";
+                    cotOverlay.style.border = "1px solid #444";
+                    document.getElementById('cot-state').textContent = "STOPPED";
+                    document.getElementById('cot-state').style.backgroundColor = "#555";
+                } else {
+                    // START
+                    cotContent.innerHTML = '';
+                    cotOverlay.style.display = 'block';
+                    cotOverlay.style.border = "1px solid #007acc";
+                    document.getElementById('cot-state').textContent = "RUNNING";
+                    document.getElementById('cot-state').style.backgroundColor = "#007acc";
+
+                    const formData = new FormData();
+                    formData.append('goal', document.getElementById('autonav-target').value);
+                    formData.append('initial_state', document.getElementById('autonav-initial-state').value);
+                    formData.append('device_choice', selectedDevice);
+                    formData.append('execute_cmds', "true"); // Continuous Auto mode always executes commands
+                    if (selectedModel) formData.append('model_choice', selectedModel);
+
+                    // Send prompts for CURRENT scenario
+                    const s = scenarios[currentScenario] || scenarios['scenario1'];
+                    formData.append('core_prompt', s.core);
+                    formData.append('searching_prompt', s.searching || "");
+                    formData.append('navigating_prompt', s.navigating || "");
+                    formData.append('recovering_prompt', s.recovering || "");
+
+                    btn.disabled = true;
+                    btn.textContent = "Starting...";
+
+                    try {
+                        const startRes = await fetch('/start_autonomous_navigate', {
+                            method: 'POST', body: formData
+                        });
+                        const startData = await startRes.json();
+                        if (startData.status !== 'success') {
+                            alert("Could not start: " + startData.message);
+                            btn.disabled = false;
+                            cotOverlay.style.display = 'none';
+                            return;
+                        }
+
+                        isStreaming = true;
+                        btn.disabled = false;
+                        btn.textContent = habitatSubMode === 'autonomous' ? "Stop Navigation" : "Stop Assistant";
+                        btn.style.backgroundColor = "rgba(204, 0, 0, 0.8)";
+                        btn.style.color = "white";
+
+                        logDebug("Starting AutonomousNavigator Stream...");
+
+                        let currentStepResultDiv = null;
+                        autonavEventSource = new EventSource('/autonomous_navigate_stream');
+
+                        autonavEventSource.onmessage = function (event) {
+                            try {
+                                const data = JSON.parse(event.data);
+                                if (data.type === 'log') {
+                                    cotContent.innerHTML += `<div style="color: #9cdcfe; margin-top: 8px;">[System] ${data.data}</div>`;
+                                    logDebug(`[AutoNav] ${data.data}`);
+                                } else if (data.type === 'reasoning_chunk') {
+                                    // 1. Update CoT Overlay
+                                    cotContent.innerHTML += `<span>${data.data} </span>`;
+                                    cotOverlay.scrollTop = cotOverlay.scrollHeight;
+
+                                    // 2. Update Main Result Display (Real-time stream)
+                                    if (!currentStepResultDiv) {
+                                        const timestamp = new Date().toLocaleTimeString();
+                                        const wrapper = document.createElement('div');
+                                        wrapper.style.margin = "15px 0";
+                                        wrapper.style.border = "1px solid #444";
+                                        wrapper.style.borderRadius = "8px";
+                                        wrapper.style.background = "#252526";
+                                        wrapper.innerHTML = `
+                                            <div style="background: #1e1e1e; padding: 10px 20px; border-bottom: 1px solid #444; font-size: 13px; color: #4ec9b0;">
+                                                AUTONOMOUS ANALYSIS STEP [${timestamp}]
+                                            </div>
+                                            <div class="step-content" style="padding: 15px; border-left: 6px solid #e6a822; font-size: 17px; line-height: 1.6; white-space: pre-wrap; color: #ddd;"></div>
+                                        `;
+                                        resultDisplay.appendChild(wrapper);
+                                        currentStepResultDiv = wrapper.querySelector('.step-content');
+                                    }
+
+                                    // Clean tags for display but keep basic structure
+                                    const chunk = data.data.replace(/<br>/g, '\n').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+                                    currentStepResultDiv.innerHTML += chunk + " ";
+                                } else if (data.type === 'state_update') {
+                                    const stateEl = document.getElementById('cot-state');
+                                    const state = data.data.state.toUpperCase();
+                                    stateEl.textContent = state;
+
+                                    // Dynamic Styling for Top Badge
+                                    if (state === 'SEARCHING') stateEl.style.backgroundColor = '#d19a66';
+                                    else if (state === 'NAVIGATING') stateEl.style.backgroundColor = '#98c379';
+                                    else if (state === 'RECOVERING') stateEl.style.backgroundColor = '#e06c75';
+
+                                    cotContent.innerHTML += `<div style="border-top: 1px dashed #555; margin-top: 10px; padding-top: 10px; opacity: 0.6;"></div>`;
+
+                                    // Reset current step div for the next iteration in Result Display
+                                    currentStepResultDiv = null;
+
+                                    // SYNC UI: Update pills and prompt tab
+                                    const stateKey = state.toLowerCase();
+                                    switchCoTPromptTab(stateKey, true); // Update pills/nodes without saving
+                                } else if (data.type === 'error') {
+                                    cotContent.innerHTML += `<div style="color: #f44747; margin-top: 8px;">[Error] ${data.data}</div>`;
+                                    logDebug(`<span style="color:#f44747">[AutoNav Error] ${data.data}</span>`);
+                                } else if (data.type === 'frame_update') {
+                                    // Received a base64 frame update from an action
+                                    photoDisplay.src = "data:image/jpeg;base64," + data.data;
+                                } else if (data.type === 'stopped') {
+                                    toggleAutonomousStream(); // Triggers the stop block
+                                }
+                                cotOverlay.scrollTop = cotOverlay.scrollHeight;
+                            } catch (e) {
+                                console.error("Parse Error in SSE:", e);
+                            }
+                        };
+
+                        autonavEventSource.onerror = function () {
+                            if (isStreaming) {
+                                toggleAutonomousStream();
+                                logDebug(`<span style="color:#f44747">[AutoNav] Stream disconnected.</span>`);
+                            }
+                        }
+
+                    } catch (e) {
+                        alert("Error starting stream: " + e);
+                        btn.disabled = false;
+                    }
+                }
+            }
+
+            async function analyzeSimSnapshot() {
+                if (currentMode !== 'habitat') return;
+
+                // PhotoDisplay holds the current base64 frame from simulator
+                const base64Data = photoDisplay.src.split(',')[1];
+                if (!base64Data) {
+                    logDebug(`<span style="color:#f44747">Error: No frame to analyze.</span>`);
+                    return;
+                }
+
+                // Convert base64 to Blob
+                const byteCharacters = atob(base64Data);
+                const byteNumbers = new Array(byteCharacters.length);
+                for (let i = 0; i < byteCharacters.length; i++) {
+                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                const originalBlob = new Blob([byteArray], { type: 'image/jpeg' });
+
+                logDebug("Capturing simulator snapshot for analysis...");
+
+                const blobToSend = await getProcessedBlob(originalBlob);
+
+                // Send to backend asynchronously without awaiting so UI doesn't freeze
+                sendFileToBackend(blobToSend).catch(e => {
+                    console.error("Async analysis error:", e);
+                    logDebug(`<span style="color:#f44747">Async Error: ${e}</span>`);
+                });
+            }
+
+
+
+            function togglePromptInput() {
+                const isCustom = document.getElementById('use-custom-prompt').checked;
+                if (isCustom) {
+                    promptInput.disabled = false;
+                    promptInput.classList.add('active');
+                    if (!promptInput.value || promptInput.value === BASE_PROMPT) {
+                        promptInput.focus();
+                    }
+                } else {
+                    promptInput.disabled = true;
+                    promptInput.classList.remove('active');
+                    promptInput.value = BASE_PROMPT; // Always revert to base
+                }
+                updateButtonStates();
+            }
+
+            async function savePrompt() {
+                const content = promptInput.value;
+                const name = prompt("Enter a name for this prompt (will be saved in /core prompts):");
+                if (name) {
+                    const formData = new FormData();
+                    formData.append('name', name);
+                    formData.append('content', content);
+
+                    try {
+                        const res = await fetch('/save_prompt', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        const data = await res.json();
+                        alert(data.message);
+                    } catch (e) {
+                        alert("Error saving prompt: " + e);
+                    }
+                }
+            }
+
+            function loadPromptFromFile(input) {
+                const file = input.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    const content = e.target.result;
+                    promptInput.value = content;
+
+                    // Enable custom prompt mode
+                    const checkbox = document.getElementById('use-custom-prompt');
+                    checkbox.checked = true;
+                    togglePromptInput();
+
+                    // Reset file input so same file can be loaded again if desired
+                    input.value = '';
+                };
+                reader.readAsText(file);
+            }
+
+            function updateFPS(val) {
+                captureIntervalSec = val;
+                fpsLabel.textContent = val;
+                if (isStreaming) {
+                    stopStream();
+                    startStream();
+                }
+            }
+
+            async function captureFrameFromVideo() {
+                if (currentMode === 'habitat') {
+                    // PhotoDisplay holds the current base64 frame from simulator
+                    const base64Data = photoDisplay.src.split(',')[1];
+                    if (base64Data) {
+                        const byteCharacters = atob(base64Data);
+                        const byteNumbers = new Array(byteCharacters.length);
+                        for (let i = 0; i < byteCharacters.length; i++) {
+                            byteNumbers[i] = byteCharacters.charCodeAt(i);
+                        }
+                        const byteArray = new Uint8Array(byteNumbers);
+                        return new Blob([byteArray], { type: 'image/jpeg' });
+                    }
+                }
+                const context = canvas.getContext('2d');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                return new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg'));
+            }
+
+            function getCurrentPrompt() {
+                const isCustom = document.getElementById('use-custom-prompt').checked;
+                if (activePromptTab === 'auto') {
+                    // If in OptiSight tab, merge Core + State prompts
+                    const scenario = scenarios[currentScenario] || scenarios['scenario1'];
+                    const corePart = scenario.core || "";
+
+                    const editor = document.getElementById('autonav-prompt-editor');
+                    if (!currentPromptTab && currentAutomationMode === 'manual') {
+                        return ""; // Nothing selected in manual mode
+                    }
+
+                    const statePart = editor.value;
+
+                    // Prepend core if state is not already the core
+                    if (currentPromptTab === 'core') return statePart;
+                    return corePart + "\n\n" + statePart;
+                } else if (isCustom) {
+                    return promptInput.value;
+                } else {
+                    return BASE_PROMPT;
+                }
+            }
+
+            function logDebug(message) {
+                const timestamp = new Date().toLocaleTimeString();
+                const logEntry = `<div style="margin-bottom: 5px; border-bottom: 1px solid #333; padding-bottom: 5px;"><span style="color:#569cd6">[${timestamp}]</span> <span style="color:#4ec9b0">DEBUG:</span> ${message}</div>`;
+                resultDisplay.insertAdjacentHTML('beforeend', logEntry); // Append
+            }
+
+            let lastResult = null;
+            let lastPrompt = null;
+            let lastMetadata = null;
+            let lastDebugLog = '';
+
+            function clearResult() {
+                if (!confirm("Are you sure you want to clear the results?")) return;
+                resultDisplay.innerHTML = 'Waiting for input...';
+                lastResult = null;
+                lastPrompt = null;
+                lastMetadata = null;
+                lastDebugLog = '';
+                updateButtonStates();
+            }
+
+            function updateButtonStates() {
+                const resultEmpty = resultDisplay.textContent.trim() === 'Waiting for input...' || resultDisplay.textContent.trim() === '';
+                const promptEmpty = !promptInput.value || promptInput.value.trim() === '';
+                const isCustomPrompt = document.getElementById('use-custom-prompt').checked;
+
+                // Clear button
+                const clearBtn = document.getElementById('btn-clear-result');
+                clearBtn.classList.remove('btn-dimmed');
+
+                // Save Result button
+                const saveResultBtn = document.getElementById('btn-save-result');
+                if (resultEmpty) {
+                    saveResultBtn.classList.add('btn-dimmed');
+                } else {
+                    saveResultBtn.classList.remove('btn-dimmed');
+                }
+
+                // Save Prompt button
+                const savePromptBtn = document.getElementById('btn-save-prompt');
+                if (promptEmpty || !isCustomPrompt) {
+                    savePromptBtn.classList.add('btn-dimmed');
+                } else {
+                    savePromptBtn.classList.remove('btn-dimmed');
+                }
+
+                // Load Prompt button
+                const loadPromptBtn = document.getElementById('btn-load-prompt');
+                if (!isCustomPrompt) {
+                    loadPromptBtn.classList.add('btn-dimmed');
+                } else {
+                    loadPromptBtn.classList.remove('btn-dimmed');
+                }
+
+                // Memory Mode
+                const memModeContainer = document.getElementById('memory-mode-container');
+                const memModeCheckbox = document.getElementById('memory-mode-checkbox');
+                if (!isCustomPrompt) {
+                    if (memModeContainer) memModeContainer.classList.add('btn-dimmed');
+                    if (memModeCheckbox) memModeCheckbox.disabled = true;
+                } else {
+                    // We let updateActionButton handle the final 'hasContent' disable logic
+                    // but at a baseline, it's enabled here if custom prompt is on
+                    if (memModeContainer) memModeContainer.classList.remove('btn-dimmed');
+                    if (memModeCheckbox) memModeCheckbox.disabled = false;
+
+                    // Re-apply content check if it exists so we don't accidentally enable it when we shouldn't
+                    if (typeof updateActionButton === 'function') {
+                        // Slight delay or direct check - but action button relies on globals so it's safe to just call
+                        updateActionButton();
+                    }
+                }
+            }
+
+            async function saveCurrentResult() {
+                if (!lastResult) return;
+                const name = prompt("Enter a name for this result (will be saved in /results):");
+                if (!name) return;
+                const formData = new FormData();
+                formData.append('name', name);
+                formData.append('prompt', lastPrompt);
+                formData.append('content', lastResult);
+                formData.append('metadata', JSON.stringify(lastMetadata));
+                formData.append('debug_log', lastDebugLog);
+                formData.append('source_type', currentMode);
+                formData.append('source_name', currentSourceName || 'Unknown');
+
+                try {
+                    const res = await fetch('/save_result', {
                         method: 'POST',
                         body: formData
                     });
                     const data = await res.json();
                     alert(data.message);
                 } catch (e) {
-                    alert("Error saving prompt: " + e);
+                    alert("Error saving result: " + e);
                 }
             }
-        }
 
-        function loadPromptFromFile(input) {
-            const file = input.files[0];
-            if (!file) return;
+            async function sendFileToBackend(fileBlob) {
+                if (!fileBlob) return;
 
-            const reader = new FileReader();
-            reader.onload = function (e) {
-                const content = e.target.result;
-                promptInput.value = content;
+                const formData = new FormData();
+                formData.append('file', fileBlob, 'image.jpg');
+                formData.append('prompt', getCurrentPrompt());
+                formData.append('goal', document.getElementById('autonav-target').value);
+                formData.append('device_choice', selectedDevice);
 
-                // Enable custom prompt mode
-                const checkbox = document.getElementById('use-custom-prompt');
-                checkbox.checked = true;
-                togglePromptInput();
+                // Append Memory Mode choice
+                const isMemoryModeEnabled = document.getElementById('memory-mode-checkbox').checked;
+                formData.append('memory_mode', isMemoryModeEnabled);
 
-                // Reset file input so same file can be loaded again if desired
-                input.value = '';
-            };
-            reader.readAsText(file);
-        }
-
-        function updateFPS(val) {
-            captureIntervalSec = val;
-            fpsLabel.textContent = val;
-            if (isStreaming) {
-                stopStream();
-                startStream();
-            }
-        }
-
-        function captureFrameFromVideo() {
-            const context = canvas.getContext('2d');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-            return new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg'));
-        }
-
-        function getCurrentPrompt() {
-            const isCustom = document.getElementById('use-custom-prompt').checked;
-            if (isCustom) {
-                return promptInput.value;
-            } else {
-                return BASE_PROMPT;
-            }
-        }
-
-        function logDebug(message) {
-            const timestamp = new Date().toLocaleTimeString();
-            const logEntry = `<div style="margin-bottom: 5px; border-bottom: 1px solid #333; padding-bottom: 5px;"><span style="color:#569cd6">[${timestamp}]</span> <span style="color:#4ec9b0">DEBUG:</span> ${message}</div>`;
-            resultDisplay.insertAdjacentHTML('beforeend', logEntry); // Append
-            resultDisplay.scrollTop = resultDisplay.scrollHeight;
-        }
-
-        let lastResult = null;
-        let lastPrompt = null;
-        let lastMetadata = null;
-        let lastDebugLog = '';
-
-        function clearResult() {
-            if (!confirm("Are you sure you want to clear the results?")) return;
-            resultDisplay.innerHTML = 'Waiting for input...';
-            lastResult = null;
-            lastPrompt = null;
-            lastMetadata = null;
-            lastDebugLog = '';
-            updateButtonStates();
-        }
-
-        function updateButtonStates() {
-            const resultEmpty = resultDisplay.textContent.trim() === 'Waiting for input...' || resultDisplay.textContent.trim() === '';
-            const promptEmpty = !promptInput.value || promptInput.value.trim() === '';
-            const isCustomPrompt = document.getElementById('use-custom-prompt').checked;
-
-            // Clear button
-            const clearBtn = document.getElementById('btn-clear-result');
-            clearBtn.classList.remove('btn-dimmed');
-
-            // Save Result button
-            const saveResultBtn = document.getElementById('btn-save-result');
-            if (resultEmpty) {
-                saveResultBtn.classList.add('btn-dimmed');
-            } else {
-                saveResultBtn.classList.remove('btn-dimmed');
-            }
-
-            // Save Prompt button
-            const savePromptBtn = document.getElementById('btn-save-prompt');
-            if (promptEmpty || !isCustomPrompt) {
-                savePromptBtn.classList.add('btn-dimmed');
-            } else {
-                savePromptBtn.classList.remove('btn-dimmed');
-            }
-
-            // Load Prompt button
-            const loadPromptBtn = document.getElementById('btn-load-prompt');
-            if (!isCustomPrompt) {
-                loadPromptBtn.classList.add('btn-dimmed');
-            } else {
-                loadPromptBtn.classList.remove('btn-dimmed');
-            }
-
-            // Memory Mode
-            const memModeContainer = document.getElementById('memory-mode-container');
-            const memModeCheckbox = document.getElementById('memory-mode-checkbox');
-            if (!isCustomPrompt) {
-                if (memModeContainer) memModeContainer.classList.add('btn-dimmed');
-                if (memModeCheckbox) memModeCheckbox.disabled = true;
-            } else {
-                // We let updateActionButton handle the final 'hasContent' disable logic
-                // but at a baseline, it's enabled here if custom prompt is on
-                if (memModeContainer) memModeContainer.classList.remove('btn-dimmed');
-                if (memModeCheckbox) memModeCheckbox.disabled = false;
-
-                // Re-apply content check if it exists so we don't accidentally enable it when we shouldn't
-                if (typeof updateActionButton === 'function') {
-                    // Slight delay or direct check - but action button relies on globals so it's safe to just call
-                    updateActionButton();
+                if (selectedModel) {
+                    formData.append('model_choice', selectedModel);
                 }
-            }
-        }
+                if (currentMode === 'habitat') {
+                    formData.append('habitat_submode', habitatSubMode);
+                }
 
-        async function saveCurrentResult() {
-            if (!lastResult) return;
-            const name = prompt("Enter a name for this result (will be saved in /results):");
-            if (!name) return;
-            const formData = new FormData();
-            formData.append('name', name);
-            formData.append('prompt', lastPrompt);
-            formData.append('content', lastResult);
-            formData.append('metadata', JSON.stringify(lastMetadata));
-            formData.append('debug_log', lastDebugLog);
-            formData.append('source_type', currentMode);
-            formData.append('source_name', currentSourceName || 'Unknown');
+                logDebug(`Starting analysis [Device: ${selectedDevice}, Memory Mode: ${isMemoryModeEnabled}]...`);
 
-            try {
-                const res = await fetch('/save_result', {
-                    method: 'POST',
-                    body: formData
-                });
-                const data = await res.json();
-                alert(data.message);
-            } catch (e) {
-                alert("Error saving result: " + e);
-            }
-        }
+                // Check if there's an existing controller (e.g. from same mode double-click? though buttons usually disabled/hidden or logic prevents. But safe to replace). 
+                // Actually user logic said "tab switch". But cancelling previous on new start is also good practice.
+                if (currentAnalysisController) currentAnalysisController.abort();
+                currentAnalysisController = new AbortController();
+                const signal = currentAnalysisController.signal;
 
-        async function sendFileToBackend(fileBlob) {
-            if (!fileBlob) return;
+                try {
+                    const startTime = Date.now();
+                    const response = await fetch('/analyze', {
+                        method: 'POST',
+                        body: formData,
+                        signal: signal
+                    });
+                    const data = await response.json();
+                    const totalDuration = ((Date.now() - startTime) / 1000).toFixed(2);
 
-            const formData = new FormData();
-            formData.append('file', fileBlob, 'image.jpg');
-            formData.append('prompt', getCurrentPrompt());
-            formData.append('device_choice', selectedDevice);
+                    if (data.response.startsWith("Error")) {
+                        logDebug(`<span style="color:#f44747">FAILED: ${data.response}</span>`);
+                    } else {
+                        const loadTime = data.debug?.load_time || "0s";
+                        const infTime = data.debug?.inference_time || "0s";
 
-            // Append Memory Mode choice
-            const isMemoryModeEnabled = document.getElementById('memory-mode-checkbox').checked;
-            formData.append('memory_mode', isMemoryModeEnabled);
+                        logDebug(`<span style="color:#dcdcaa">SUCCESS: Total ${totalDuration}s (Load: ${loadTime}, Inf: ${infTime})</span>`);
 
-            if (selectedModel) {
-                formData.append('model_choice', selectedModel);
-            }
-            if (currentMode === 'habitat') {
-                formData.append('habitat_submode', habitatSubMode);
-            }
+                        lastResult = data.response;
+                        lastPrompt = getCurrentPrompt();
+                        lastMetadata = data.debug;
+                        lastDebugLog = resultDisplay.innerText;
+                        updateButtonStates();
 
-            logDebug(`Starting analysis [Device: ${selectedDevice}, Memory Mode: ${isMemoryModeEnabled}]...`);
+                        // Extract Memory block if present
+                        let memoryBlockHTML = "";
+                        let mainResponse = data.response;
 
-            // Check if there's an existing controller (e.g. from same mode double-click? though buttons usually disabled/hidden or logic prevents. But safe to replace). 
-            // Actually user logic said "tab switch". But cancelling previous on new start is also good practice.
-            if (currentAnalysisController) currentAnalysisController.abort();
-            currentAnalysisController = new AbortController();
-            const signal = currentAnalysisController.signal;
-
-            try {
-                const startTime = Date.now();
-                const response = await fetch('/analyze', {
-                    method: 'POST',
-                    body: formData,
-                    signal: signal
-                });
-                const data = await response.json();
-                const totalDuration = ((Date.now() - startTime) / 1000).toFixed(2);
-
-                if (data.response.startsWith("Error")) {
-                    logDebug(`<span style="color:#f44747">FAILED: ${data.response}</span>`);
-                } else {
-                    const loadTime = data.debug?.load_time || "0s";
-                    const infTime = data.debug?.inference_time || "0s";
-
-                    logDebug(`<span style="color:#dcdcaa">SUCCESS: Total ${totalDuration}s (Load: ${loadTime}, Inf: ${infTime})</span>`);
-
-                    lastResult = data.response;
-                    lastPrompt = getCurrentPrompt();
-                    lastMetadata = data.debug;
-                    lastDebugLog = resultDisplay.innerText;
-                    updateButtonStates();
-
-                    // Extract Memory block if present
-                    let memoryBlockHTML = "";
-                    let mainResponse = data.response;
-
-                    if (isMemoryModeEnabled && mainResponse.includes("Memory:\n")) {
-                        // Split the response to extract the memory block
-                        const parts = mainResponse.split("\n\nObservation:");
-                        if (parts.length > 1) {
-                            const memoryText = parts[0].trim();
-                            mainResponse = "Observation:" + parts[1]; // Restore the rest of the output
-
-                            // Escape just the memory part
-                            const escapedMemory = memoryText
+                        const injectedMemory = data.injected_memory || "";
+                        if (isMemoryModeEnabled && injectedMemory && injectedMemory !== "None") {
+                            // Escape the memory text
+                            const escapedMemory = injectedMemory
                                 .replace(/&/g, "&amp;")
                                 .replace(/</g, "&lt;")
                                 .replace(/>/g, "&gt;");
 
                             memoryBlockHTML = `
-                                <div style="background: #2b2b2b; padding: 15px; border-left: 6px solid #e6a822; margin: 15px 0 0 0; border-bottom: 2px dashed #444;">
-                                    <div style="color:#e6a822; font-weight:bold; font-size: 16px; margin-bottom:8px; text-transform: uppercase;">[Context] Memory Injected for this Prompt:</div>
-                                    <div style="font-size: 16px; line-height: 1.5; color: #ddd; white-space: pre-wrap; font-family: 'Consolas', monospace;">${escapedMemory}</div>
-                                </div>
-                            `;
+                            <div style="background: #2b2b2b; padding: 15px; border-left: 6px solid #e6a822; margin: 0; border-bottom: 2px dashed #444;">
+                                <div style="color:#e6a822; font-weight:bold; font-size: 16px; margin-bottom:8px; text-transform: uppercase;">[Context] Memory Injected for this Prompt:</div>
+                                <div style="font-size: 16px; line-height: 1.5; color: #ddd; white-space: pre-wrap; font-family: 'Consolas', monospace;">${escapedMemory}</div>
+                            </div>
+                        `;
                         }
-                    }
 
-                    // Escape HTML characters for the main response so tags like <cmd> are displayed as text
-                    const escapedResponse = mainResponse
-                        .replace(/&/g, "&amp;")
-                        .replace(/</g, "&lt;")
-                        .replace(/>/g, "&gt;");
+                        // Escape HTML characters for the main response so tags like <cmd> are displayed as text
+                        const escapedResponse = mainResponse
+                            .replace(/&/g, "&amp;")
+                            .replace(/</g, "&lt;")
+                            .replace(/>/g, "&gt;");
 
-                    const timestamp = new Date().toLocaleTimeString();
-                    const finalResult = `
-                        ${memoryBlockHTML}
-                        <div style="background: #333; padding: 20px; border-left: 6px solid #007acc; margin: ${memoryBlockHTML ? '0 0 15px 0' : '15px 0'};">
-                            <div style="color:#569cd6; font-weight:bold; font-size: 20px; margin-bottom:10px;">[${timestamp}] RESULT:</div>
-                            <div style="margin-bottom:15px; font-size: 19px; line-height: 1.6; white-space: pre-wrap;">${escapedResponse}</div>
-                            <div style="border-top: 1px solid #555; padding-top: 12px; font-size: 16px; font-family: 'Consolas', monospace; color: #aaa;">
-                                <div style="display:flex; justify-content:space-between; margin-bottom: 5px;">
-                                    <span style="color: #4ec9b0; font-weight: bold;">Model: ${data.debug?.model_choice || 'Unknown'} | Device: ${data.debug?.device || 'Unknown'}</span>
-                                    <span>Load: <span style="color:white;">${loadTime}</span> | Inf: <span style="color:white;">${infTime}</span></span>
+                        const timestamp = new Date().toLocaleTimeString();
+
+                        // Enhanced CoT Header
+                        let cotHeaderHTML = "";
+                        if (activePromptTab === 'auto') {
+                            cotHeaderHTML = `
+                            <div style="background: #1e1e1e; padding: 12px 20px; border-bottom: 1px solid #444; border-radius: 8px 8px 0 0; display: flex; justify-content: space-between; align-items: center;">
+                                <div style="font-size: 14px; color: #ddd;">
+                                    <span style="color: #4ec9b0; font-weight: bold; text-transform: uppercase;">Scenario:</span> ${currentScenario.toUpperCase()} | 
+                                    <span style="color: #ce9178; font-weight: bold; text-transform: uppercase;">Progress:</span> ${(currentPromptTab || "None").toUpperCase()}
                                 </div>
-                                <div style="display:flex; justify-content:space-between; margin-bottom: 5px;">
-                                    <span>Total Time: <span style="color:white;">${data.debug?.total_time}</span></span>
+                                <div style="display: flex; gap: 10px;">
+                                    <button onclick="const p = this.parentElement.parentElement.nextElementSibling; p.style.display = p.style.display === 'none' ? 'block' : 'none';" 
+                                        style="background: #333; color: #ccc; border: 1px solid #555; padding: 4px 10px; font-size: 12px; border-radius: 4px; cursor: pointer;">Show Full Prompt</button>
                                 </div>
-                                <div style="display:flex; justify-content:space-between;">
-                                    <span>RAM: <span style="color:white;">${data.debug?.ram_usage}</span></span>
-                                    <span>GPU: <span style="color:white;">${data.debug?.gpu_usage}</span></span>
+                            </div>
+                            <div style="display: none; background: #000; color: #858585; padding: 15px; font-family: 'Consolas', monospace; font-size: 12px; border-bottom: 1px solid #333; white-space: pre-wrap; max-height: 200px; overflow-y: auto;">${data.debug?.final_prompt || "Prompt not returned"}</div>
+                        `;
+                        }
+
+                        const finalResult = `
+                        <div style="margin: 15px 0; border: 1px solid #444; border-radius: 8px; overflow: hidden; background: #252526;">
+                            ${cotHeaderHTML}
+                            ${memoryBlockHTML}
+                            <div style="padding: 20px; border-left: 6px solid #007acc;">
+                                <div style="color:#569cd6; font-weight:bold; font-size: 20px; margin-bottom:10px;">[${timestamp}] RESULT:</div>
+                                <div style="margin-bottom:15px; font-size: 19px; line-height: 1.6; white-space: pre-wrap;">${escapedResponse}</div>
+                                <div style="border-top: 1px solid #555; padding-top: 12px; font-size: 16px; font-family: 'Consolas', monospace; color: #aaa;">
+                                    <div style="display:flex; justify-content:space-between; margin-bottom: 5px;">
+                                        <span style="color: #4ec9b0; font-weight: bold;">Model: ${data.debug?.model_choice || 'Unknown'} | Device: ${data.debug?.device || 'Unknown'}</span>
+                                        <span>Load: <span style="color:white;">${loadTime}</span> | Inf: <span style="color:white;">${infTime}</span></span>
+                                    </div>
+                                    <div style="display:flex; justify-content:space-between; margin-bottom: 5px;">
+                                        <span>Total Time: <span style="color:white;">${data.debug?.total_time}</span></span>
+                                    </div>
+                                    <div style="display:flex; justify-content:space-between;">
+                                        <span>RAM: <span style="color:white;">${data.debug?.ram_usage}</span></span>
+                                        <span>GPU: <span style="color:white;">${data.debug?.gpu_usage}</span></span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     `;
-                    resultDisplay.insertAdjacentHTML('beforeend', finalResult); // Append
+                        resultDisplay.insertAdjacentHTML('beforeend', finalResult); // Append
 
-                    // Also show debug timing at the very bottom for easy visibility
-                    const debugSummary = `<div style="margin-top: 5px; padding: 5px 10px; background: #1e1e1e; border-left: 3px solid #4ec9b0; font-family: 'Consolas', monospace; font-size: 14px; color: #888;">DEBUG: SUCCESS: Total ${totalDuration}s (Load: ${loadTime}, Inf: ${infTime})</div>`;
-                    resultDisplay.insertAdjacentHTML('beforeend', debugSummary);
-                    resultDisplay.scrollTop = resultDisplay.scrollHeight;
+                        // Also show debug timing at the very bottom for easy visibility
+                        const debugSummary = `<div style="margin-top: 5px; padding: 5px 10px; background: #1e1e1e; border-left: 3px solid #4ec9b0; font-family: 'Consolas', monospace; font-size: 14px; color: #888;">DEBUG: SUCCESS: Total ${totalDuration}s (Load: ${loadTime}, Inf: ${infTime})</div>`;
+                        resultDisplay.insertAdjacentHTML('beforeend', debugSummary);
+                        // resultDisplay.scrollTop = resultDisplay.scrollHeight;
+
+                        // Automatic State Transitions
+                        if (currentAutomationMode === 'auto' && activePromptTab === 'auto') {
+                            const goalCheckYes = /Goal_Check:\s*YES/i.test(mainResponse);
+                            if (currentPromptTab === 'searching' && goalCheckYes) {
+                                logDebug("<span style='color: #4ec9b0; font-weight: bold;'>[Trigger] Goal spotted! Automatically transitioning to NAVIGATING.</span>");
+                                switchCoTPromptTab('navigating', true);
+                                updateStatePills('navigating');
+                            }
+                        }
+                    }
+
+                } catch (error) {
+                    if (error.name === 'AbortError') {
+                        console.log("Fetch aborted by user navigation or new request.");
+                        // Do not log error to UI
+                    } else {
+                        console.error("Error:", error);
+                        logDebug(`<span style="color:#f44747">ERROR: Communication problem.</span>`);
+                    }
+                } finally {
+                    currentAnalysisController = null;
                 }
+            }
 
-            } catch (error) {
-                if (error.name === 'AbortError') {
-                    console.log("Fetch aborted by user navigation or new request.");
-                    // Do not log error to UI
+            async function analyzePhoto() {
+                if (photoUpload.files && photoUpload.files[0]) {
+                    const blobToSend = await getProcessedBlob(photoUpload.files[0]);
+                    await sendFileToBackend(blobToSend);
+                }
+            }
+
+            function toggleStream() {
+                if (isStreaming) {
+                    stopStream();
                 } else {
-                    console.error("Error:", error);
-                    logDebug(`<span style="color:#f44747">ERROR: Communication problem.</span>`);
+                    startStream();
                 }
-            } finally {
-                currentAnalysisController = null;
-            }
-        }
-
-        async function analyzePhoto() {
-            if (photoUpload.files && photoUpload.files[0]) {
-                const blobToSend = await getProcessedBlob(photoUpload.files[0]);
-                await sendFileToBackend(blobToSend);
-            }
-        }
-
-        function toggleStream() {
-            if (isStreaming) {
-                stopStream();
-            } else {
-                startStream();
-            }
-            updateActionButton();
-        }
-
-        function startStream() {
-            isStreaming = true;
-            if (video.paused && currentMode === 'video') video.play();
-
-            console.log(`Starting stream analysis...`);
-            remainingTimeAtPause = 0;
-            scheduleNextAnalysis(0);
-        }
-
-        function stopStream() {
-            isStreaming = false;
-            cancelCurrentAnalysis(); // For total stop, we do cancel pending
-            if (streamTimeout) {
-                clearTimeout(streamTimeout);
-                streamTimeout = null;
-            }
-            if (currentMode === 'video') video.pause();
-        }
-
-        function scheduleNextAnalysis(delay) {
-            if (streamTimeout) clearTimeout(streamTimeout);
-            streamTimeout = setTimeout(triggerAnalysisStep, delay);
-        }
-
-        async function triggerAnalysisStep() {
-            if (!isStreaming) return;
-            if (currentMode === 'video' && video.paused) return;
-
-            lastAnalysisTimestamp = Date.now();
-            const originalBlob = await captureFrameFromVideo();
-            const blobToSend = await getProcessedBlob(originalBlob);
-            await sendFileToBackend(blobToSend);
-
-            // Schedule next if still active and not paused
-            if (isStreaming && (currentMode !== 'video' || !video.paused)) {
-                scheduleNextAnalysis(captureIntervalSec * 1000);
-            }
-        }
-
-        // Initialize Default Mode
-        setMode('photo');
-        togglePromptInput(); // Set initial state of prompt input
-
-        // Listen for prompt changes
-        promptInput.addEventListener('input', updateButtonStates);
-
-        // Initial state check
-        updateButtonStates();
-        loadScenariosFromServer();
-
-        // Stop/Pause analysis based on video state
-        video.addEventListener('ended', () => {
-            if (isStreaming && currentMode === 'video') {
-                console.log("Video ended, stopping analysis.");
-                stopStream();
                 updateActionButton();
             }
-        });
 
-        video.addEventListener('pause', () => {
-            if (isStreaming && currentMode === 'video') {
-                // Calculate remaining time
-                const elapsed = Date.now() - lastAnalysisTimestamp;
-                remainingTimeAtPause = (captureIntervalSec * 1000) - elapsed;
-                if (remainingTimeAtPause < 0) remainingTimeAtPause = 0;
+            function startStream() {
+                isStreaming = true;
+                if (video.paused && currentMode === 'video') video.play();
 
-                console.log(`Video paused. Remaining time for next analysis: ${remainingTimeAtPause}ms`);
+                console.log(`Starting stream analysis...`);
+                remainingTimeAtPause = 0;
+                scheduleNextAnalysis(0);
+            }
 
+            function stopStream() {
+                isStreaming = false;
+                cancelCurrentAnalysis(); // For total stop, we do cancel pending
                 if (streamTimeout) {
                     clearTimeout(streamTimeout);
                     streamTimeout = null;
                 }
-                updateActionButton();
-                // Note: We do NOT cancelCurrentAnalysis() here so the last one can finish
+                if (currentMode === 'video') video.pause();
             }
-        });
 
-        video.addEventListener('play', () => {
-            if (isStreaming && currentMode === 'video' && !streamTimeout) {
-                console.log(`Video resumed. Rescheduling analysis in ${remainingTimeAtPause}ms`);
-                scheduleNextAnalysis(remainingTimeAtPause);
-                updateActionButton();
+            function scheduleNextAnalysis(delay) {
+                if (streamTimeout) clearTimeout(streamTimeout);
+                streamTimeout = setTimeout(triggerAnalysisStep, delay);
             }
-        });
 
-    </script>
+            async function triggerAnalysisStep() {
+                if (!isStreaming && habitatSubMode !== 'live_one_shot') return;
+                if (currentMode === 'video' && video.paused) return;
+
+                lastAnalysisTimestamp = Date.now();
+                const originalBlob = await captureFrameFromVideo();
+                const blobToSend = await getProcessedBlob(originalBlob);
+                await sendFileToBackend(blobToSend);
+
+                // Schedule next if still active and not paused
+                if (isStreaming && (currentMode !== 'video' || !video.paused) && habitatSubMode !== 'live_one_shot') {
+                    scheduleNextAnalysis(captureIntervalSec * 1000);
+                }
+            }
+
+            // Initialize Default Mode
+            setMode('photo');
+            togglePromptInput(); // Set initial state of prompt input
+
+            // Listen for prompt changes
+            promptInput.addEventListener('input', updateButtonStates);
+
+            // Initial state check
+            updateButtonStates();
+            loadScenariosFromServer();
+
+            // Stop/Pause analysis based on video state
+            video.addEventListener('ended', () => {
+                if (isStreaming && currentMode === 'video') {
+                    console.log("Video ended, stopping analysis.");
+                    stopStream();
+                    updateActionButton();
+                }
+            });
+
+            video.addEventListener('pause', () => {
+                if (isStreaming && currentMode === 'video') {
+                    // Calculate remaining time
+                    const elapsed = Date.now() - lastAnalysisTimestamp;
+                    remainingTimeAtPause = (captureIntervalSec * 1000) - elapsed;
+                    if (remainingTimeAtPause < 0) remainingTimeAtPause = 0;
+
+                    console.log(`Video paused. Remaining time for next analysis: ${remainingTimeAtPause}ms`);
+
+                    if (streamTimeout) {
+                        clearTimeout(streamTimeout);
+                        streamTimeout = null;
+                    }
+                    updateActionButton();
+                    // Note: We do NOT cancelCurrentAnalysis() here so the last one can finish
+                }
+            });
+
+            video.addEventListener('play', () => {
+                if (isStreaming && currentMode === 'video' && !streamTimeout) {
+                    console.log(`Video resumed. Rescheduling analysis in ${remainingTimeAtPause}ms`);
+                    scheduleNextAnalysis(remainingTimeAtPause);
+                    updateActionButton();
+                }
+            });
+
+        </script>
 
 </body>
 

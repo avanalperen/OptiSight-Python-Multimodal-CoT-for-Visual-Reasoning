@@ -128,9 +128,13 @@ Reasoning: (1 sentence)
             
             # Select appropriate template
             template_key = self.state.lower()
-            prompt_template = self.prompts.get(template_key, self.prompts.get("searching"))
+            state_template = self.prompts.get(template_key, self.prompts.get("searching"))
+            core_template = self.prompts.get("core", "")
             
-            prompt = prompt_template.replace("{goal}", self.goal).replace("{memory}", mem_str).replace("{state}", self.state)
+            # Merge Core + State templates
+            full_template = core_template + "\n\n" + state_template if core_template else state_template
+            
+            prompt = full_template.replace("{goal}", self.goal).replace("{memory}", mem_str).replace("{state}", self.state)
             
             yield self.format_sse('state_update', {"state": self.state})
             yield self.format_sse('log', f"Analyzing scene (State: {self.state})...")

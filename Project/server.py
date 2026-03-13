@@ -427,6 +427,7 @@ async def unload_model_endpoint():
 async def analyze(
     file: UploadFile = File(...),
     prompt: str = Form(...),
+    goal: str = Form(None),
     device_choice: str = Form("cpu"),
     model_choice: str = Form("qwen2-2b"),
     habitat_submode: str = Form(None),
@@ -439,15 +440,20 @@ async def analyze(
     start_time = time.time()
     
     try:
-        # 1. Prompt Injection - Handle memory system
-        if "{PREVIOUS_MEMORY}" in prompt and habitat_controller:
+        # 1. Prompt Injection - Handle memory system and goal
+        # Replace {goal} if provided
+        if goal:
+            prompt = prompt.replace("{goal}", goal)
+            logger.info(f"Replaced {{goal}} with: {goal}")
+
+        if ("{PREVIOUS_MEMORY}" in prompt or "{memory}" in prompt) and habitat_controller:
             if memory_mode.lower() == "true":
                 mem_str = habitat_controller.get_memory_string()
-                prompt = prompt.replace("{PREVIOUS_MEMORY}", mem_str)
+                prompt = prompt.replace("{PREVIOUS_MEMORY}", mem_str).replace("{memory}", mem_str)
                 logger.info(f"Injected memory into prompt: {mem_str}")
             else:
                 prompt = prompt.replace("Previous memory: {PREVIOUS_MEMORY}.", "")
-                prompt = prompt.replace("{PREVIOUS_MEMORY}", "None")
+                prompt = prompt.replace("{PREVIOUS_MEMORY}", "None").replace("{memory}", "None")
                 logger.info("Memory mode disabled, omitted memory from prompt.")
         
         # On-demand loading
@@ -557,7 +563,7 @@ async def analyze(
         inference_end = time.time()
         
         # 2. Extract Reasoning/Command for Stateful Controller and Auto-Execution
-        if habitat_submode in ['live', 'autonomous'] and habitat_controller:
+        if habitat_submode in ['live', 'live_one_shot', 'autonomous'] and habitat_controller:
             # Capture the memory state BEFORE we append the new action
             mem_str_for_display = habitat_controller.get_memory_string()
             
@@ -586,7 +592,7 @@ async def analyze(
                         habitat_controller.move_agent(extracted_cmd)
 
         # 3. Clean and format the final response for display
-        if habitat_submode in ['live', 'autonomous'] and habitat_controller:
+        if habitat_submode in ['live', 'live_one_shot', 'autonomous'] and habitat_controller:
             formatted_response = final_response
             
             # Add double newlines before keywords
@@ -609,6 +615,7 @@ async def analyze(
         
         return {
             "response": final_response,
+            "injected_memory": mem_str_for_display if (memory_mode.lower() == "true" and habitat_controller) else "None",
             "debug": {
                 "total_time": f"{total_time:.2f}s",
                 "inference_time": f"{inference_time:.2f}s",
@@ -616,7 +623,8 @@ async def analyze(
                 "ram_usage": f"{ram_start}% -> {ram_end}%",
                 "gpu_usage": f"{gpu_start['percent']}% ({gpu_start['usage']}) -> {gpu_end['percent']}% ({gpu_end['usage']})",
                 "device": "GPU" if (hasattr(model.device, 'type') and model.device.type == "cuda") or model.device == "cuda" else "CPU",
-                "model_choice": model_choice
+                "model_choice": model_choice,
+                "final_prompt": prompt
             }
         }
 
