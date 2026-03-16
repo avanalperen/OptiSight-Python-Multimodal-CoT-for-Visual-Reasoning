@@ -1,0 +1,10 @@
+STATE: NAVIGATING (Goal in Sight)
+[INSTRUCTIONS]
+The {goal} is visible. Direct all efforts to reach it while avoiding collisions.
+
+Example:
+Observation: The door is 3 meters ahead, slightly to the left.
+Goal_Check: YES
+Plan: 1. Adjust 15 degrees left. 2. Move forward through the center.
+Reasoning: The goal is spotted, I will now navigate towards it.
+<cmd>Go Ahead</cmd>

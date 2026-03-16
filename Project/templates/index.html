@@ -564,6 +564,21 @@
             background: #e0e0e0;
         }
 
+        #btn-restart-habitat {
+            padding: 8px 20px;
+            font-size: 16px;
+            background: white;
+            color: black;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        #btn-restart-habitat:hover {
+            background: #e0e0e0;
+        }
+
         #btn-load-prompt {
             padding: 8px 20px;
             font-size: 16px;
@@ -1163,7 +1178,7 @@
                                 <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
                                     <button
                                         style="padding: 8px 16px; background: #007acc; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: bold;"
-                                        onclick="saveActivePromptTab()">Save Prompt</button>
+                                        onclick="saveActivePromptTab()">Save All Prompts</button>
                                 </div>
                             </div>
                         </div>
@@ -1173,12 +1188,11 @@
                         style="display: flex; justify-content: flex-end; gap: 15px; margin-top: 30px; padding-top: 20px; border-top: 1px solid #333;">
                         <button
                             style="padding: 12px 30px; font-size: 16px; font-weight: bold; color: #ddd; background: #333; border: 1px solid #555; border-radius: 6px; cursor: pointer;"
-                            onclick="document.getElementById('autonav-modal').style.display='none'">Cancel</button>
+                            onclick="closeAutoNavModal()">Cancel</button>
                         <button
                             style="padding: 12px 30px; font-size: 16px; font-weight: bold; color: white; background: #007acc; border: none; border-radius: 6px; cursor: pointer;"
-                            onclick="saveActivePromptToMemory(); syncScenariosToServer(); document.getElementById('autonav-modal').style.display='none'">Save
-                            &
-                            Apply</button>
+                            onclick="saveActivePromptToMemory(); syncScenariosToServer(); alert('Settings saved and applied!'); settingsChanged = false; document.getElementById('autonav-modal').style.display='none'">Save
+                            & Apply</button>
                     </div>
                 </div>
 
@@ -1304,7 +1318,7 @@
                             <div style="margin-top: 20px; border-top: 1px solid #444; padding-top: 15px;">
                                 <div style="display: flex; justify-content: space-between; align-items: stretch;">
                                     <div style="flex: 1;">
-                                        <label class="active-label">Core Progress State</label>
+                                        <label class="active-label">Progress State</label>
                                         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
                                             <button class="state-pill active" id="state-pill-searching"
                                                 onclick="handleStatePillClick('searching')">Searching</button>
@@ -1335,6 +1349,8 @@
                     <div id="result-display">Waiting for input...</div>
                     <div style="display:flex; justify-content:flex-end; gap: 10px; margin-top: 10px;">
                         <button id="btn-clear-result" onclick="clearResult()">Clear</button>
+                        <button id="btn-restart-habitat" onclick="restartHabitat()"
+                            style="display: none;">Restart</button>
                         <button id="btn-save-result" onclick="saveCurrentResult()">Save Result</button>
                     </div>
                 </div>
@@ -1346,6 +1362,10 @@
             const canvas = document.getElementById('canvas');
             const photoDisplay = document.getElementById('captured-photo');
             const resultDisplay = document.getElementById('result-display');
+
+            function scrollToBottom() {
+                resultDisplay.scrollTop = resultDisplay.scrollHeight;
+            }
             const fpsLabel = document.getElementById('fps-val');
             const actionBtn = document.getElementById('action-btn');
             const promptInput = document.getElementById('prompt-input');
@@ -1397,6 +1417,7 @@
             let currentScenario = 'scenario1';
             let currentPromptTab = 'searching';
             let currentAutomationMode = null; // 'auto' or 'manual'
+            let settingsChanged = false;
 
             // Data structure: scenarios[scenarioId][promptType]
             let scenarios = {
@@ -1456,8 +1477,12 @@
 
             function handleStatePillClick(tab) {
                 if (currentAutomationMode === 'manual') {
-                    switchCoTPromptTab(tab, true);
-                    updateStatePills(tab);
+                    if (currentPromptTab === tab) {
+                        // Toggle off
+                        switchCoTPromptTab(null, true);
+                    } else {
+                        switchCoTPromptTab(tab, true);
+                    }
                 } else {
                     // In auto mode, state pills are primarily indicators
                     logDebug("State cannot be changed manually in Automatic mode.");
@@ -1473,16 +1498,18 @@
 
                 // UI Update for Prompt Tabs
                 document.querySelectorAll('.prompt-tab').forEach(btn => {
-                    btn.classList.toggle('active', btn.textContent.toLowerCase() === tab);
+                    btn.classList.toggle('active', tab && btn.textContent.toLowerCase() === tab);
                 });
 
                 // UI Update for Visual Flow Nodes
                 document.querySelectorAll('.state-node').forEach(node => {
                     node.classList.remove('active');
                 });
-                const flowNode = document.getElementById(`flow-node-${tab}`);
-                if (flowNode) {
-                    flowNode.classList.add('active');
+                if (tab) {
+                    const flowNode = document.getElementById(`flow-node-${tab}`);
+                    if (flowNode) {
+                        flowNode.classList.add('active');
+                    }
                 }
 
                 // Sync Main UI pills if they exist
@@ -1498,22 +1525,22 @@
             }
 
             function loadActivePromptFromMemory() {
-                const value = scenarios[currentScenario][currentPromptTab] || "";
+                const tabToLoad = currentPromptTab || 'core';
+                const value = scenarios[currentScenario][tabToLoad] || "";
                 document.getElementById('autonav-prompt-editor').value = value;
             }
 
             function saveActivePromptToMemory() {
-                const editor = document.getElementById('autonav-prompt-editor');
-                if (!editor) return;
-                const val = editor.value;
+                const tabToSave = currentPromptTab || 'core';
                 if (!scenarios[currentScenario]) scenarios[currentScenario] = {};
-                scenarios[currentScenario][currentPromptTab] = val;
+                scenarios[currentScenario][tabToSave] = document.getElementById('autonav-prompt-editor').value;
             }
 
             function saveActivePromptTab() {
                 saveActivePromptToMemory();
                 syncScenariosToServer();
-                alert(`Prompt for ${currentScenario.toUpperCase()} - ${currentPromptTab.toUpperCase()} saved persistently.`);
+                settingsChanged = false;
+                // No individual alert as per request
             }
 
             async function syncScenariosToServer() {
@@ -1544,11 +1571,34 @@
                 }
             }
 
+            function closeAutoNavModal() {
+                if (settingsChanged) {
+                    if (!confirm("Are you sure? Unsaved changes will be lost.")) return;
+                }
+                settingsChanged = false;
+                document.getElementById('autonav-modal').style.display = 'none';
+            }
+
             function openAutoNavModal() {
                 if (!scenarios['scenario1']) {
                     scenarios['scenario1'] = { core: "", searching: "", navigating: "", recovering: "" };
                 }
                 const s1 = scenarios['scenario1'];
+
+                // Reset change tracker
+                settingsChanged = false;
+
+                // Add change listeners if not already added
+                const editor = document.getElementById('autonav-prompt-editor');
+                const target = document.getElementById('autonav-target');
+                if (editor && !editor.dataset.listenerAdded) {
+                    editor.addEventListener('input', () => { settingsChanged = true; });
+                    editor.dataset.listenerAdded = 'true';
+                }
+                if (target && !target.dataset.listenerAdded) {
+                    target.addEventListener('input', () => { settingsChanged = true; });
+                    target.dataset.listenerAdded = 'true';
+                }
 
                 // Populate defaults if empty (first time)
                 if (!s1.core) {
@@ -2029,6 +2079,7 @@ Reasoning: I am stuck and need to move back to regain a navigable path.
 
                 const actionBtn = document.getElementById('action-btn');
                 const tabBtnAuto = document.getElementById('tab-btn-auto');
+                const tabBtnManual = document.getElementById('tab-btn-manual');
 
                 if (subMode === 'live' || subMode === 'live_one_shot' || subMode === 'autonomous') {
                     updateActionButton();
@@ -2392,7 +2443,10 @@ Reasoning: I am stuck and need to move back to regain a navigable path.
                 const tabBtnAuto = document.getElementById('tab-btn-auto');
                 const tabBtnManual = document.getElementById('tab-btn-manual');
 
+                const btnRestart = document.getElementById('btn-restart-habitat');
+
                 if (currentMode === 'habitat') {
+                    if (btnRestart) btnRestart.style.display = 'inline-block';
                     tabHeader.style.display = 'flex';
                     promptHeader.style.display = 'none';
 
@@ -2415,6 +2469,7 @@ Reasoning: I am stuck and need to move back to regain a navigable path.
                         tabBtnAuto.style.display = 'inline-block';
                     }
                 } else {
+                    if (btnRestart) btnRestart.style.display = 'none';
                     tabHeader.style.display = 'none';
                     promptHeader.style.display = 'flex';
                     if (activePromptTab === 'auto') {
@@ -2988,7 +3043,7 @@ Reasoning: I am stuck and need to move back to regain a navigable path.
 
                     const editor = document.getElementById('autonav-prompt-editor');
                     if (!currentPromptTab && currentAutomationMode === 'manual') {
-                        return ""; // Nothing selected in manual mode
+                        return corePart; // Fallback to Core prompt if no state is selected
                     }
 
                     const statePart = editor.value;
@@ -3007,6 +3062,7 @@ Reasoning: I am stuck and need to move back to regain a navigable path.
                 const timestamp = new Date().toLocaleTimeString();
                 const logEntry = `<div style="margin-bottom: 5px; border-bottom: 1px solid #333; padding-bottom: 5px;"><span style="color:#569cd6">[${timestamp}]</span> <span style="color:#4ec9b0">DEBUG:</span> ${message}</div>`;
                 resultDisplay.insertAdjacentHTML('beforeend', logEntry); // Append
+                scrollToBottom();
             }
 
             let lastResult = null;
@@ -3014,8 +3070,42 @@ Reasoning: I am stuck and need to move back to regain a navigable path.
             let lastMetadata = null;
             let lastDebugLog = '';
 
+            async function restartHabitat() {
+                if (!confirm("Are you sure you want to reset simulation memory and restart view?")) return;
+
+                stopStream();
+                if (currentAnalysisController) currentAnalysisController.abort();
+
+                const cotContent = document.getElementById('cot-content');
+                if (cotContent) cotContent.innerHTML = '';
+
+                // Reset local result state
+                lastResult = null;
+                lastPrompt = null;
+                lastMetadata = null;
+                lastDebugLog = '';
+                updateButtonStates();
+
+                resultDisplay.innerHTML = 'Restarting...';
+
+                try {
+                    const res = await fetch('/clear_habitat_memory', { method: 'POST' });
+                    const data = await res.json();
+                    if (data.status === 'success') {
+                        logDebug("Memory cleared. Current view and position preserved.");
+                        resultDisplay.innerHTML = 'Waiting for input...';
+                    } else {
+                        alert("Error: " + data.message);
+                    }
+                } catch (e) {
+                    console.error("Restart error:", e);
+                    alert("Restart failed: " + e);
+                }
+            }
+
             function clearResult() {
                 if (!confirm("Are you sure you want to clear the results?")) return;
+
                 resultDisplay.innerHTML = 'Waiting for input...';
                 lastResult = null;
                 lastPrompt = null;
@@ -3158,8 +3248,8 @@ Reasoning: I am stuck and need to move back to regain a navigable path.
                         let memoryBlockHTML = "";
                         let mainResponse = data.response;
 
-                        const injectedMemory = data.injected_memory || "";
-                        if (isMemoryModeEnabled && injectedMemory && injectedMemory !== "None") {
+                        const injectedMemory = data.injected_memory || "None";
+                        if (injectedMemory) {
                             // Escape the memory text
                             const escapedMemory = injectedMemory
                                 .replace(/&/g, "&amp;")
@@ -3189,7 +3279,7 @@ Reasoning: I am stuck and need to move back to regain a navigable path.
                             <div style="background: #1e1e1e; padding: 12px 20px; border-bottom: 1px solid #444; border-radius: 8px 8px 0 0; display: flex; justify-content: space-between; align-items: center;">
                                 <div style="font-size: 14px; color: #ddd;">
                                     <span style="color: #4ec9b0; font-weight: bold; text-transform: uppercase;">Scenario:</span> ${currentScenario.toUpperCase()} | 
-                                    <span style="color: #ce9178; font-weight: bold; text-transform: uppercase;">Progress:</span> ${(currentPromptTab || "None").toUpperCase()}
+                                    <span style="color: #ce9178; font-weight: bold; text-transform: uppercase;">Progress:</span> ${(currentPromptTab || "CORE").toUpperCase()}
                                 </div>
                                 <div style="display: flex; gap: 10px;">
                                     <button onclick="const p = this.parentElement.parentElement.nextElementSibling; p.style.display = p.style.display === 'none' ? 'block' : 'none';" 
@@ -3228,7 +3318,7 @@ Reasoning: I am stuck and need to move back to regain a navigable path.
                         // Also show debug timing at the very bottom for easy visibility
                         const debugSummary = `<div style="margin-top: 5px; padding: 5px 10px; background: #1e1e1e; border-left: 3px solid #4ec9b0; font-family: 'Consolas', monospace; font-size: 14px; color: #888;">DEBUG: SUCCESS: Total ${totalDuration}s (Load: ${loadTime}, Inf: ${infTime})</div>`;
                         resultDisplay.insertAdjacentHTML('beforeend', debugSummary);
-                        // resultDisplay.scrollTop = resultDisplay.scrollHeight;
+                        scrollToBottom();
 
                         // Automatic State Transitions
                         if (currentAutomationMode === 'auto' && activePromptTab === 'auto') {

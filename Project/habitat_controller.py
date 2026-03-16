@@ -167,7 +167,7 @@ class HabitatController:
     def get_memory_string(self):
         """Returns the current state records for prompt injection."""
         if len(self.memory) == 0:
-            return "\n1. None\n2. None"
+            return "None"
         elif len(self.memory) == 1:
             return f"\n1. None\n2. {self.memory[0]}"
         else:

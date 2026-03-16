@@ -1,0 +1,10 @@
+STATE: SEARCHING (Looking for {goal})
+[INSTRUCTIONS]
+Scan the room. If {goal} is not visible, move forward or turn to explore.
+
+Example:
+Observation: Hallway clear, no door yet.
+Goal_Check: NO
+Plan: 1. Move forward to the end of the hall. 2. Turn right to peek into next room.
+Reasoning: I need to explore further to locate the target.
+<cmd>Go Ahead</cmd>

@@ -136,6 +136,40 @@ def save_settings(settings):
     global SESSION_SETTINGS
     SESSION_SETTINGS.update(settings)
 
+def sync_prompts_to_filesystem(scenarios):
+    """Syncs the latest prompts from scenario1 to designated 'best' text files."""
+    try:
+        # Core prompt sync
+        core_path = os.path.join("core prompts", "best", "Best Core Prompt.txt")
+        os.makedirs(os.path.dirname(core_path), exist_ok=True)
+        
+        # State prompts mapping
+        state_paths = {
+            'searching': os.path.join("scenario prompts", "searching", "Best Searching Prompt.txt"),
+            'navigating': os.path.join("scenario prompts", "navigating", "Best Navigating Prompt.txt"),
+            'recovering': os.path.join("scenario prompts", "recovering", "Best Recovering Prompt.txt")
+        }
+        
+        # We take prompts from 'scenario1' as the primary source for sync
+        s1 = scenarios.get('scenario1', {})
+        
+        # Sync Core
+        if s1.get('core'):
+            with open(core_path, "w", encoding="utf-8") as f:
+                f.write(s1['core'])
+            logger.info(f"Synced Best Core Prompt to {core_path}")
+            
+        # Sync States
+        for state, path in state_paths.items():
+            if s1.get(state):
+                os.makedirs(os.path.dirname(path), exist_ok=True)
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write(s1[state])
+                logger.info(f"Synced Best {state.capitalize()} Prompt to {path}")
+                
+    except Exception as e:
+        logger.error(f"Error syncing prompts to filesystem: {e}")
+
 def get_gpu_info():
     """Returns GPU usage percentage and memory if available."""
     gpu_stats = {"percent": 0, "usage": "N/A"}
@@ -229,11 +263,23 @@ async def save_scenarios_endpoint(request: Request):
     try:
         data = await request.json()
         if save_scenarios(data):
+            # Sync to best text files
+            sync_prompts_to_filesystem(data)
             return {"status": "success"}
         else:
             return {"status": "error", "message": "Failed to save file"}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+
+@app.post("/clear_habitat_memory")
+async def clear_habitat_memory():
+    global habitat_controller
+    if habitat_controller:
+        with habitat_lock:
+            habitat_controller.clear_memory()
+        logger.info("Habitat memory cleared via endpoint.")
+        return {"status": "success", "message": "Memory cleared."}
+    return {"status": "error", "message": "Simulator not initialized."}
 
 @app.post("/save_prompt")
 async def save_prompt(name: str = Form(...), content: str = Form(...)):
@@ -435,9 +481,9 @@ async def analyze(
 ):
     global model, processor, habitat_controller
     
-    import gc
     import time
     start_time = time.time()
+    mem_str_for_display = "None"
     
     try:
         # 1. Prompt Injection - Handle memory system and goal
@@ -450,7 +496,7 @@ async def analyze(
             if memory_mode.lower() == "true":
                 mem_str = habitat_controller.get_memory_string()
                 prompt = prompt.replace("{PREVIOUS_MEMORY}", mem_str).replace("{memory}", mem_str)
-                logger.info(f"Injected memory into prompt: {mem_str}")
+                logger.info("Injected memory into prompt.")
             else:
                 prompt = prompt.replace("Previous memory: {PREVIOUS_MEMORY}.", "")
                 prompt = prompt.replace("{PREVIOUS_MEMORY}", "None").replace("{memory}", "None")
@@ -463,7 +509,7 @@ async def analyze(
         gpu_start = get_gpu_info()
         logger.info(f"--- Analysis Started ---")
         logger.info(f"Model Choice: {model_choice} | Device: {device_choice} (Load Time: {load_time:.2f}s)")
-        logger.info(f"Prompt: {prompt}")
+        logger.info("Prompt Injected.")
         
         contents = await file.read()
         image = Image.open(io.BytesIO(contents)).convert("RGB")
@@ -615,7 +661,7 @@ async def analyze(
         
         return {
             "response": final_response,
-            "injected_memory": mem_str_for_display if (memory_mode.lower() == "true" and habitat_controller) else "None",
+            "injected_memory": mem_str_for_display,
             "debug": {
                 "total_time": f"{total_time:.2f}s",
                 "inference_time": f"{inference_time:.2f}s",

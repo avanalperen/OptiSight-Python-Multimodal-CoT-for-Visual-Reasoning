@@ -1,42 +1,0 @@
-Gym has been unmaintained since 2022 and does not support NumPy 2.0 amongst other critical functionality.
-Please upgrade to Gymnasium, the maintained drop-in replacement of Gym, or contact the authors of your software and request that they upgrade.
-See the migration guide at https://gymnasium.farama.org/introduction/migration_guide/ for additional information.
-INFO:     Started server process [27163]
-INFO:     Waiting for application startup.
-INFO:server:RAM Usage at Startup: 24.3%
-INFO:server:Opening dashboard...
-INFO:     Application startup complete.
-INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-INFO:     127.0.0.1:58768 - "GET / HTTP/1.1" 200 OK
-INFO:server:Loading deepseek-1.3b on cuda...
-/home/aavan/miniconda3/envs/habitat/lib/python3.9/site-packages/transformers/models/auto/image_processing_auto.py:647: FutureWarning: The image_processor_class argument is deprecated and will be removed in v4.42. Please use `slow_image_processor_class`, or `fast_image_processor_class` instead
-  warnings.warn(
-`torch_dtype` is deprecated! Use `dtype` instead!
-INFO:accelerate.utils.modeling:We will use 90% of the memory on device 0 for storing the model, and 10% for the buffer to avoid OOM. You can set `max_memory` in to a higher value to use more memory (at your own risk).
-Using a slow image processor as `use_fast` is unset and a slow processor was saved with this model. `use_fast=True` will be the default behavior in v4.52, even if the model was saved with a slow processor. This will result in minor differences in outputs. You'll still be able to use a slow processor with `use_fast=False`.
-You are using the default legacy behaviour of the <class 'transformers.models.llama.tokenization_llama_fast.LlamaTokenizerFast'>. This is expected, and simply means that the `legacy` (previous) behavior will be used so nothing changes for you. If you want to use the new behaviour, set `legacy=False`. This should only be set if you understand what it means, and thoroughly read the reason why this was added as explained in https://github.com/huggingface/transformers/pull/24565 - if you loaded a llama tokenizer from a GGUF file you can ignore this message.
-INFO:server:deepseek-1.3b loaded on cuda in 1.34s
-INFO:     127.0.0.1:58768 - "POST /load_model HTTP/1.1" 200 OK
-INFO:server:--- Analysis Started ---
-INFO:server:Model Choice: deepseek-1.3b | Device: cuda (Load Time: 0.00s)
-INFO:server:Prompt: Describe this image
-INFO:server:Analysis Complete. Total time: 6.38s
-INFO:server:Resources [End] - RAM: 26.8%, GPU: 98% (5707/8192 MB)
-INFO:     127.0.0.1:58768 - "POST /analyze HTTP/1.1" 200 OK
-INFO:server:Model unloaded from memory. Cleanup complete.
-INFO:     127.0.0.1:58778 - "POST /unload_model HTTP/1.1" 200 OK
-INFO:server:Loading qwen2-2b on cuda...
-INFO:accelerate.utils.modeling:We will use 90% of the memory on device 0 for storing the model, and 10% for the buffer to avoid OOM. You can set `max_memory` in to a higher value to use more memory (at your own risk).
-Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]Loading checkpoint shards:  50%|█████     | 1/2 [00:03<00:03,  3.76s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:04<00:00,  2.02s/it]Loading checkpoint shards: 100%|██████████| 2/2 [00:04<00:00,  2.28s/it]
-The image processor of type `Qwen2VLImageProcessor` is now loaded as a fast processor by default, even if the model checkpoint was saved with a slow processor. This is a breaking change and may produce slightly different outputs. To continue using the slow processor, instantiate this class with `use_fast=False`. Note that this behavior will be extended to all models in a future release.
-INFO:server:qwen2-2b loaded on cuda in 5.24s
-INFO:     127.0.0.1:58778 - "POST /load_model HTTP/1.1" 200 OK
-INFO:server:--- Analysis Started ---
-INFO:server:Model Choice: qwen2-2b | Device: cuda (Load Time: 0.00s)
-INFO:server:Prompt: Describe this image
-The following generation flags are not valid and may be ignored: ['temperature', 'top_p', 'top_k']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
-INFO:server:Analysis Complete. Total time: 3.22s
-INFO:server:Resources [End] - RAM: 27.7%, GPU: 81% (4995/8192 MB)
-INFO:     127.0.0.1:58778 - "POST /analyze HTTP/1.1" 200 OK
-INFO:server:Model unloaded from memory. Cleanup complete.
-INFO:     127.0.0.1:58778 - "POST /unload_model HTTP/1.1" 200 OK
