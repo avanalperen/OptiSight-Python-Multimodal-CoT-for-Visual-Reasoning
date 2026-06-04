@@ -1,0 +1,14 @@
+Project : OptiSight : A Python-Driven Multimodal CoT Framework for Visual Reasoning.
+
+“OptiSight: A Python-Driven Multimodal CoT Framework for Visual Reasoning,” will involve the development of an integrated multimodal system capable of combining 
+visual perception with structured reasoning. The project leverages a Vision-Language Model (VLM) to 
+perform object-level visual recognition and supports higher-order reasoning tasks through Chain-of-
+Thought (CoT) methodologies. A key objective of the work is the design of an architecture optimized 
+for efficient deployment on specialized hardware, ensuring minimal computational overhead and high 
+real-time performance. To this end, the system will be implemented primarily in Python, while Kornia 
+will be employed to support differentiable image processing and visual operations within the
+framework. 
+
+A farmer robot that sees through camera and detects the obstacles with explained reasoning VLM system and giving basic commands to robot like turn left-go ahead-turn left. Firstly design a system and understand the framework of it later on it will be use on robots. 
+
+

@@ -29,8 +29,6 @@ models/
 
 # Output and temporary folders
 results/
-scratch/
-vlm inputs/
 
 # Ignore root-level generated images but keep test images in folders
 /vlm_input_debug.jpg
