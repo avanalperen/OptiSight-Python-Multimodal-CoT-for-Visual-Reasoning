@@ -1,5 +1,5 @@
 ## 🔍 OptiSight  
-**A Rust-Driven Multimodal CoT Framework for Visual Reasoning**
+**A Python-Driven Multimodal CoT Framework for Visual Reasoning**
 
 **OptiSight** is a **high-performance multimodal framework** that bridges **visual perception** with **structured reasoning**. It integrates **Vision-Language Models (VLMs)** for object-level visual understanding and enables **higher-order inference** through **Chain-of-Thought (CoT)** methodologies.
 
