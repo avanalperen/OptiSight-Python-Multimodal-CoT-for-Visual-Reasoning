@@ -42,6 +42,18 @@ bash setup_qwen35.sh
 - **Option 1 (Native)**: Photo/Video analysis only (No Sim). Run `windows setup/run_windows.bat`.
 - **Option 2 (WSL - Recommended)**: Full features including AI Habitat. Follow the Linux setup steps inside a WSL Ubuntu terminal.
 
+### Starting the Server via WSL
+To easily start the WSL environment and backend server directly from your Windows PowerShell or Command Prompt, run the following commands:
+
+```bash
+# 1. Open the WSL terminal
+wsl
+
+# 2. Activate the environment and start the server
+conda activate habitat
+python server.py
+```
+
 ## Troubleshooting
 - **CUDA Error (No Kernel Image)**: Ensure you are using the `qwen35` environment setup which includes CUDA 11.8 support for Pascal GPUs.
 - **Memory Issues**: The system now uses resolution resizing (448px) and a bridge architecture to stay within 8GB VRAM limits.

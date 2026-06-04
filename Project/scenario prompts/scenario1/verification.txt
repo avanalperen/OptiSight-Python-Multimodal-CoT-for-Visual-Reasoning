@@ -1,0 +1,1 @@
+Task: Is there a door passage directly in front of you? Answer with only YES or NO.

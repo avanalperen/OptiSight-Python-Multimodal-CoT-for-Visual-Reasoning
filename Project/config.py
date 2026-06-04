@@ -7,9 +7,10 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # --- Model Path Configuration ---
 
-QWEN_PATH = "/home/aavan/Desktop/Project Files/Vision Language Models/qwen2-vl-2b"
-QWEN35_08B_PATH = "/home/aavan/Desktop/Project Files/Vision Language Models/qwen3.5-vl-0.8b"
-QWEN35_2B_PATH = "/home/aavan/Desktop/Project Files/Vision Language Models/qwen3.5-vl-2b"
+QWEN_PATH = "/mnt/c/Alperen/IRI Internship/Vision Language Models/qwen2-vl-2b"
+QWEN35_08B_PATH = "/mnt/c/Alperen/IRI Internship/Vision Language Models/Qwen3.5-VL-0.8B"
+QWEN35_2B_PATH = "/mnt/c/Alperen/IRI Internship/Vision Language Models/Qwen3.5-VL-2B"
+SAM2_PATH = "/mnt/c/Alperen/IRI Internship/Vision Foundation Models/sam2.1-hiera-tiny"
 
 # Default Model path for initial load/fallback
 MODEL_PATH = QWEN_PATH

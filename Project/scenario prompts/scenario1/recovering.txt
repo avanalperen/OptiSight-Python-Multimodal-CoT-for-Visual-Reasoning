@@ -1,0 +1,2 @@
+Goal: {goal}
+<cmd>Turn 40 Degrees Right</cmd>

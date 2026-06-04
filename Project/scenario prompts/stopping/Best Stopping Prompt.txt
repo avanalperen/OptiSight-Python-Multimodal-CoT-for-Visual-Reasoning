@@ -1,0 +1,2 @@
+Goal: {goal}
+<cmd>Stop</cmd>

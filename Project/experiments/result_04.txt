@@ -1,0 +1,23 @@
+===================================================================================================================
+                                                 EXPERIMENT RESULT                                                 
+===================================================================================================================
+
+[ METRICS ]                                               | [ STEP-BY-STEP SUMMARY ]
+                                                          | 
+Mission Success      : Successful                         | - Goal not found. Executing smooth autonomous 90-degree
+Total Execution Time : 21.3 s                             | search turn...
+Total Distance       : 1.28 m                             | - Initiating smooth 90-degree environmental scan...
+Min Obstacle Dist    : N/A m                              | - Environmental scan (90°) completed.
+Total Steps          : 35                                 | - Starting next analysis step automatically...
+Total Collisions     : 0                                  | - Goal confirmed by VLM. Switching to FINDING mode.
+Recoveries Triggered : 0                                  | - FINDING mode active: Waiting for Grounded-SAM lock...
+State Distribution   : S:2 F:1 N:1 R:0 SC:1               | - Grounded-SAM: Running inference (Attempt 1)...
+VLM Requests         : 3                                  | - Transitioning to SCANNING_PATH for obstacle
+Parse/Hallucinations : 0                                  | detection.
+                                                          | - Safe path verified. Resuming navigation.
+                                                          | - Navigating towards target...
+                                                          | - SUCCESS: Door passage completed. Robot stabilized.
+                                                          | - SUCCESS: The mission was manually marked as
+                                                          | successful.
+
+===================================================================================================================

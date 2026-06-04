@@ -1,0 +1,21 @@
+===================================================================================================================
+                                                 EXPERIMENT RESULT                                                 
+===================================================================================================================
+
+[ METRICS ]                                               | [ STEP-BY-STEP SUMMARY ]
+                                                          | 
+Mission Success      : Successful                         | - Goal confirmed by VLM. Switching to FINDING mode.
+Total Execution Time : 29.2 s                             | - FINDING mode active: Waiting for Grounded-SAM lock...
+Total Distance       : 5.28 m                             | - Grounded-SAM: Running inference (Attempt 1)...
+Min Obstacle Dist    : 0.27 m                             | - Transitioning to SCANNING_PATH for obstacle
+Total Steps          : 62                                 | detection.
+Total Collisions     : 0                                  | - Safe path verified. Resuming navigation.
+Recoveries Triggered : 0                                  | - Navigating towards target... [Camera tilted —
+State Distribution   : S:1 F:1 N:2 R:0 SC:2               | obstacle evasion]
+VLM Requests         : 2                                  | - Safe path verified. Resuming navigation.
+Parse/Hallucinations : 0                                  | - Navigating towards target...
+                                                          | - SUCCESS: Door passage completed. Robot stabilized.
+                                                          | - SUCCESS: The mission was manually marked as
+                                                          | successful.
+
+===================================================================================================================

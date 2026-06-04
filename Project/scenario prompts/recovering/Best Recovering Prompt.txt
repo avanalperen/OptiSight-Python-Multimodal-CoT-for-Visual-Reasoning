@@ -1,10 +1,2 @@
-STATE: RECOVERING (Collision/Blocked)
-[INSTRUCTIONS]
-You just hit an obstacle. You MUST back away or turn significantly to clear your path.
-
-Example:
-Observation: Stuck against a wall, viewing a blank surface.
-Goal_Check: YES (Target behind me)
-Plan: 1. Back up 0.5 meters. 2. Turn 180 degrees to face the room.
-Reasoning: I am stuck and need to move back to regain a navigable path.
-<cmd>Turn Back</cmd>
+Goal: {goal}
+<cmd>Turn 40 Degrees Right</cmd>

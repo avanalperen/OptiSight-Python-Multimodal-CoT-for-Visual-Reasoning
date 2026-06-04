@@ -1,7 +1,7 @@
 # Windows Setup Guide
 
 This project can run on Windows in two modes:
-1. **Native Windows (Partial)**: Supports Photo & Video analysis using Qwen2-VL. Does *not* support AI Habitat Simulation.
+1. **Native Windows (Partial)**: Supports Photo & Video analysis using Vision-Language Models. Does *not* support AI Habitat Simulation.
 2. **WSL (Full)**: Supports all features including AI Habitat Simulation, running inside a Linux subsystem.
 
 ---
@@ -11,20 +11,20 @@ This project can run on Windows in two modes:
 ### Installation Steps
 
 1. **Run the Setup Script**:
-   - Double-click `run_windows.bat` to create the `habitat-win` environment.
-   - **Important for Qwen 3.5**: You must also create the bridge environment manually:
-     ```bash
-     conda env create -f "windows setup/environment_qwen35_win.yml"
-     ```
+   - Navigate to the `windows setup` folder and double-click `run_windows.bat`.
+   - This script will automatically create two Conda environments:
+     - `qwen35`: A bridge environment used for high-performance model inference.
+     - `habitat-win`: The main environment for the dashboard and UI.
+   - Wait for both environments to be created and the server to start.
 
 2. **Access the Dashboard**:
-   - Navigate to `http://localhost:8000`.
+   - Once the server is running, open your browser and navigate to `http://localhost:8000`.
 
 ---
 
 ## Option 2: WSL (Full Features - RECOMMENDED)
 
-If you need the **AI Habitat Simulator** and modern VLMs (Qwen 3.5), you must use WSL.
+If you need the **AI Habitat Simulator** and full system capabilities, you must use WSL (Windows Subsystem for Linux).
 
 ### Installation Steps (Inside WSL)
 
@@ -39,9 +39,14 @@ If you need the **AI Habitat Simulator** and modern VLMs (Qwen 3.5), you must us
    bash "linux setup/setup_qwen35.sh"
    
    # 3. Run
+   # Open the WSL terminal from Windows PowerShell
+   wsl
+   
+   # Inside WSL, activate the environment and start the server
    conda activate habitat
    python server.py
    ```
 
 ### Troubleshooting WSL
-- **CUDA Errors**: If you have a Pascal GPU (GTX 10 series), use the automated `setup_qwen35.sh` which installs the correct CUDA 11.8 drivers.
+- **CUDA Errors**: If you have a Pascal GPU (GTX 10 series) or older hardware, make sure you use the automated `setup_qwen35.sh` script which installs the correct CUDA 11.8 drivers.
+- **Model Paths**: Check `config.py` to ensure `QWEN_PATH` and `SAM2_PATH` are either valid local paths or HuggingFace repo IDs.
