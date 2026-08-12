@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+python-multipart
+psutil
+Pillow
+torch
+numpy
+requests
+jinja2
+habitat-sim
+transformers

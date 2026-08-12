@@ -1,0 +1,34 @@
+===================================================================================================================
+                                                 EXPERIMENT RESULT                                                 
+===================================================================================================================
+
+[ METRICS ]                                               | [ STEP-BY-STEP SUMMARY ]
+Model Used           : MOONDREAM 2 - VL - 2B              | 
+Scenario             : Scenario 02                        | 
+Mission Success      : Successful                         | - Goal confirmed by VLM. Switching to FINDING mode.
+Total Execution Time : 85.4 s                             | - FINDING mode active: Waiting for Grounded-SAM lock...
+Total Distance       : 7.96 m                             | - Grounded-SAM: Running inference (Attempt 1)...
+Min Obstacle Dist    : 0.50 m                             | - [SAM Output] Door threshold successfully identified
+Total Steps          : 88                                 | with 0.38 confidence. Spatial coordinates extracted for
+Total Collisions     : 1                                  | visual servoing. Goal_Check: YES
+Recoveries Triggered : 1                                  | (0.542,0.377),(0.677,0.761)
+State Distribution   : S:1 F:1 N:4 R:1 SC:3               | - Transitioning to SCANNING_PATH for obstacle
+VLM Requests         : 1                                  | detection.
+Parse/Hallucinations : 0                                  | - Safe path verified. Resuming navigation.
+                                                          | - Navigating towards target... [Camera tilted —
+                                                          | obstacle evasion]
+                                                          | - Safe path verified. Resuming navigation.
+                                                          | - Navigating towards target...
+                                                          | - Collision detected, initiating recovery...
+                                                          | - Recovery: Moving back smoothly (5 steps of
+                                                          | move_backward)...
+                                                          | - Recovery complete (Attempt 1). Retrying active
+                                                          | path...
+                                                          | - Navigating towards target...
+                                                          | - Safe path verified. Resuming navigation.
+                                                          | - Navigating towards target...
+                                                          | - SUCCESS: Door passage completed. Robot stabilized.
+                                                          | - SUCCESS: The mission was manually marked as
+                                                          | successful.
+
+===================================================================================================================

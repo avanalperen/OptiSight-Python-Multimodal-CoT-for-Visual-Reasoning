@@ -1,0 +1,2 @@
+ACTION: Navigating towards the 3D door projection.
+(Note: The VLM is not prompted here. The system uses visual servoing.)

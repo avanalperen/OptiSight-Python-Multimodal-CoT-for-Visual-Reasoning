@@ -1,0 +1,2 @@
+Task: Is there a doorway visible?
+Respond ONLY with 'Yes' or 'No'. Do not explain.

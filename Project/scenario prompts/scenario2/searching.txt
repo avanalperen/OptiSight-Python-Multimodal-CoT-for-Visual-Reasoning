@@ -1,3 +1,0 @@
-Task: Is there a door and door passage visible?
-Note: Do not confuse wall corners, pillars, or shower cabin edges with doors. A door passage must be a clear opening meant for walking through into another room.
-Respond ONLY with 'Yes' or 'No'. Do not explain.

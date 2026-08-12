@@ -1,0 +1,2 @@
+ACTION: Recovering by moving 5 steps backward.
+(Note: The VLM is not prompted here. The system executes an automatic fallback sequence.)

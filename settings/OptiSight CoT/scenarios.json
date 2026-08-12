@@ -1,0 +1,18 @@
+{
+    "scenario1": {
+        "searching": "Task: Is there a doorway visible?\nRespond ONLY with 'Yes' or 'No'. Do not explain.",
+        "finding": "ACTION: Finding the doorway bounding box.\n(Note: The VLM is bypassed here. The system uses Grounded-SAM for precise localization.)",
+        "navigating": "ACTION: Navigating towards the 3D door projection.\n(Note: The VLM is not prompted here. The system uses visual servoing.)",
+        "recovering": "ACTION: Recovering by moving 5 steps backward.\n(Note: The VLM is not prompted here. The system executes an automatic fallback sequence.)",
+        "null": ""
+    },
+    "scenario2": {
+        "searching": "Task: Is there a doorway visible?\nRespond ONLY with 'Yes' or 'No'. Do not explain.",
+        "finding": "ACTION: Finding the doorway bounding box.\n(Note: The VLM is bypassed here. The system uses Grounded-SAM for precise localization.)",
+        "scanning": "ACTION: Scanning the floor for obstacles.\n(Note: The system tilts the camera and uses Grounded-SAM along with depth sensors to detect obstacles and formulate a safe detour path.)",
+        "navigating": "ACTION: Navigating towards the 3D door projection.\n(Note: The VLM is not prompted here. The system uses visual servoing.)",
+        "recovering": "ACTION: Recovering by moving 5 steps backward.\n(Note: The VLM is not prompted here. The system executes an automatic fallback sequence.)",
+        "null": ""
+    },
+    "_comment_usage": "These scenarios define the Finite State Machine (FSM) prompts and rules for the Autonomous System's Chain-of-Thought navigation."
+}

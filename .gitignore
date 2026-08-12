@@ -1,0 +1,54 @@
+# Python caches and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual Environments & Libraries
+env/
+venv/
+.env/
+.venv/
+habitat-win/
+qwen35/
+miniconda3/
+anaconda3/
+Lib/
+Scripts/
+
+# Model Files and Checkpoints
+# Ignore any large model weights or checkpoint files
+models/*
+!models/.gitkeep
+
+# Habitats Map Files
+habitats/*
+!habitats/.gitkeep
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.bin
+*.onnx
+*.h5
+
+# Output and temporary folders
+results/
+
+# Ignore root-level generated images but keep test images in folders
+/vlm_input_debug.jpg
+/vlm_optimized_input_debug.jpg
+/output.jpg
+
+# Environment variables
+.env
+.env.local
+
+# IDEs and Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# MacOS
+.DS_Store

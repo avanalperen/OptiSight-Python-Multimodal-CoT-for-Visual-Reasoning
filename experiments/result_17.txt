@@ -1,0 +1,47 @@
+===================================================================================================================
+                                                 EXPERIMENT RESULT                                                 
+===================================================================================================================
+
+[ METRICS ]                                               | [ STEP-BY-STEP SUMMARY ]
+Model Used           : MOONDREAM 2 - VL - 2B              | 
+Scenario             : Scenario 02                        | 
+Mission Success      : Mission Failed                     | - Goal confirmed by VLM. Switching to FINDING mode.
+Total Execution Time : 98.9 s                             | - FINDING mode active: Waiting for Grounded-SAM lock...
+Total Distance       : 5.12 m                             | - Grounded-SAM: Running inference (Attempt 1)...
+Min Obstacle Dist    : 0.68 m                             | - [SAM Output] Door threshold successfully identified
+Total Steps          : 77                                 | with 0.39 confidence. Spatial coordinates extracted for
+Total Collisions     : 2                                  | visual servoing. Goal_Check: YES
+Recoveries Triggered : 2                                  | (0.291,0.332),(0.710,0.851)
+State Distribution   : S:3 F:3 N:2 R:2 SC:2               | - Transitioning to SCANNING_PATH for obstacle
+VLM Requests         : 3                                  | detection.
+Parse/Hallucinations : 0                                  | - Safe path verified. Resuming navigation.
+                                                          | - Navigating towards target... [Camera tilted —
+                                                          | obstacle evasion]
+                                                          | - Collision detected, initiating recovery...
+                                                          | - Recovery: Moving back smoothly (5 steps of
+                                                          | move_backward)...
+                                                          | - Recovery complete (Attempt 2). Route cleared.
+                                                          | Returning to SEARCHING to re-detect threshold.
+                                                          | - Goal confirmed by VLM. Switching to FINDING mode.
+                                                          | - FINDING mode active: Waiting for Grounded-SAM lock...
+                                                          | - Grounded-SAM: Running inference (Attempt 1)...
+                                                          | - [SAM Output] Door threshold successfully identified
+                                                          | with 0.39 confidence. Spatial coordinates extracted for
+                                                          | visual servoing. Goal_Check: YES
+                                                          | (0.738,0.000),(0.998,1.000)
+                                                          | - Transitioning to SCANNING_PATH for obstacle
+                                                          | detection.
+                                                          | - Safe path verified. Resuming navigation.
+                                                          | - Navigating towards target...
+                                                          | - Collision detected, initiating recovery...
+                                                          | - Recovery: Moving back smoothly (5 steps of
+                                                          | move_backward)...
+                                                          | - Recovery complete (Attempt 2). Route cleared.
+                                                          | Returning to SEARCHING to re-detect threshold.
+                                                          | - Goal confirmed by VLM. Switching to FINDING mode.
+                                                          | - FINDING mode active: Waiting for Grounded-SAM lock...
+                                                          | - Grounded-SAM: Running inference (Attempt 1)...
+                                                          | - MISSION FAILED: The mission was aborted or failed to
+                                                          | reach the goal.
+
+===================================================================================================================

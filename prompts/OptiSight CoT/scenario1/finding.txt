@@ -1,0 +1,2 @@
+ACTION: Finding the doorway bounding box.
+(Note: The VLM is bypassed here. The system uses Grounded-SAM for precise localization.)

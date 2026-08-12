@@ -1,0 +1,52 @@
+===================================================================================================================
+                                                 EXPERIMENT RESULT                                                 
+===================================================================================================================
+
+[ METRICS ]                                               | [ STEP-BY-STEP SUMMARY ]
+Model Used           : MOONDREAM 2 - VL - 2B              | 
+Scenario             : Scenario 02                        | 
+Mission Success      : Mission Failed                     | - Goal not found. Executing smooth autonomous 90-degree
+Total Execution Time : 118.1 s                            | search turn...
+Total Distance       : 4.48 m                             | - Initiating smooth 90-degree environmental scan...
+Min Obstacle Dist    : 0.15 m                             | - Environmental scan (90°) completed.
+Total Steps          : 76                                 | - Starting next analysis step automatically...
+Total Collisions     : 4                                  | - Goal confirmed by VLM. Switching to FINDING mode.
+Recoveries Triggered : 2                                  | - FINDING mode active: Waiting for Grounded-SAM lock...
+State Distribution   : S:4 F:2 N:2 R:2 SC:2               | - Grounded-SAM: Running inference (Attempt 1)...
+VLM Requests         : 3                                  | - [SAM Output] Door threshold successfully identified
+Parse/Hallucinations : 0                                  | with 0.40 confidence. Spatial coordinates extracted for
+                                                          | visual servoing. Goal_Check: YES
+                                                          | (0.677,0.166),(0.946,0.830)
+                                                          | - Transitioning to SCANNING_PATH for obstacle
+                                                          | detection.
+                                                          | - Safe path verified. Resuming navigation.
+                                                          | - Navigating towards target... [Camera tilted —
+                                                          | obstacle evasion]
+                                                          | - Collision detected, initiating recovery...
+                                                          | - Recovery: Moving back smoothly (5 steps of
+                                                          | move_backward)...
+                                                          | - [Recovery] Second collision detected during recovery!
+                                                          | Aborting recovery. Stopping here and returning to
+                                                          | SEARCHING.
+                                                          | - Goal confirmed by VLM. Switching to FINDING mode.
+                                                          | - FINDING mode active: Waiting for Grounded-SAM lock...
+                                                          | - Grounded-SAM: Running inference (Attempt 1)...
+                                                          | - [SAM Output] Door threshold successfully identified
+                                                          | with 0.39 confidence. Spatial coordinates extracted for
+                                                          | visual servoing. Goal_Check: YES
+                                                          | (0.610,0.181),(0.858,0.815)
+                                                          | - Transitioning to SCANNING_PATH for obstacle
+                                                          | detection.
+                                                          | - Safe path verified. Resuming navigation.
+                                                          | - Navigating towards target... [Camera tilted —
+                                                          | obstacle evasion]
+                                                          | - Collision detected, initiating recovery...
+                                                          | - Recovery: Moving back smoothly (5 steps of
+                                                          | move_backward)...
+                                                          | - [Recovery] Second collision detected during recovery!
+                                                          | Aborting recovery. Stopping here and returning to
+                                                          | SEARCHING.
+                                                          | - MISSION FAILED: The mission was aborted or failed to
+                                                          | reach the goal.
+
+===================================================================================================================

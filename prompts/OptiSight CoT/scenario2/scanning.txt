@@ -1,0 +1,2 @@
+ACTION: Scanning the floor for obstacles.
+(Note: The system tilts the camera and uses Grounded-SAM along with depth sensors to detect obstacles and formulate a safe detour path.)
