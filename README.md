@@ -9,9 +9,9 @@ You can find the detailed methodology, architectural discussions, and experiment
 
 | Role | Name | Profile |
 | :--- | :--- | :---: |
-| Senior Scientist | Jordi Sanchez Riera | <a href="https://www.iri.upc.edu/staff/jsanchez"><img src="docs/Figures/IRI%20Logo.png" width="20" height="20" alt="IRI"></a> |
-| GenAI Research Intern | Alperen Avan | <a href="https://www.linkedin.com/in/alperenavan/"><img src="https://upload.wikimedia.org/wikipedia/commons/c/ca/LinkedIn_logo_initials.png" width="20" height="20" alt="LinkedIn"></a> |
-| Institution | [IRI (Institut de Robòtica i Informàtica Industrial)](https://www.iri.upc.edu/) | <a href="https://www.iri.upc.edu/"><img src="docs/Figures/IRI%20Logo.png" width="20" height="20" alt="IRI"></a> |
+| Senior Scientist | Jordi Sanchez Riera | <a href="https://www.iri.upc.edu/staff/jsanchez"><img src="docs/Figures/IRI%20Logo.png" width="30" height="30" alt="IRI"></a> |
+| GenAI Research Intern | Alperen Avan | <a href="https://www.linkedin.com/in/alperenavan/"><img src="https://upload.wikimedia.org/wikipedia/commons/c/ca/LinkedIn_logo_initials.png" width="30" height="30" alt="LinkedIn"></a> |
+| Institution | IRI (Institut de Robòtica i Informàtica Industrial) | <a href="https://www.iri.upc.edu/"><img src="docs/Figures/IRI%20Logo.png" width="30" height="30" alt="IRI"></a> |
 
 ![IRI Logo](docs/Gifs/IRI_Logo.gif)
 
