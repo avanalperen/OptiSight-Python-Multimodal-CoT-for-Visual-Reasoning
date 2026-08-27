@@ -15,6 +15,7 @@ You can find the detailed methodology, architectural discussions, and experiment
 ### Institution
 
 This research was conducted at [IRI (Institut de Robòtica i Informàtica Industrial)](https://www.iri.upc.edu/).
+
 Specifically within the [Perception and Manipulation Laboratory](https://www.iri.upc.edu/research/perception).
 
 ![IRI Logo](docs/Gifs/IRI_Logo.gif)
