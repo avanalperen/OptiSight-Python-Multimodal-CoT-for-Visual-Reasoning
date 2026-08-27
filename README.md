@@ -1,11 +1,17 @@
 # OptiSight CoT Autonomous Navigating System
 
 ![First Experiments](docs/Gifs/first_experiments.gif)
+**📖 Read the Paper:**  
+You can find the detailed methodology, architectural discussions, and experimental results in our official publication:  
+[![arXiv](https://img.shields.io/badge/arXiv-2608.23354-b31b1b.svg)](https://arxiv.org/abs/2608.23354)
 
 **Team:**
-- Senior Scientist: Jordi Sanchez Riera
-- Software Engineer: Alperen Avan
-- Institution: [IRI (Institut de Robòtica i Informàtica Industrial)](https://www.iri.upc.edu/)
+
+| Role | Name | Profile |
+| :--- | :--- | :---: |
+| Senior Scientist | Jordi Sanchez Riera | <a href="https://www.iri.upc.edu/staff/jsanchez"><img src="docs/Figures/IRI%20Logo.png" width="20" height="20" alt="IRI"></a> |
+| Software Engineer | Alperen Avan | <a href="https://www.linkedin.com/in/alperenavan/"><img src="https://upload.wikimedia.org/wikipedia/commons/c/ca/LinkedIn_logo_initials.png" width="20" height="20" alt="LinkedIn"></a> |
+| Institution | [IRI (Institut de Robòtica i Informàtica Industrial)](https://www.iri.upc.edu/) | |
 
 ![IRI Logo](docs/Gifs/IRI_Logo.gif)
 
@@ -24,13 +30,16 @@ In addition to the autonomous agent, this project provides a comprehensive **Das
 ## Project Structure
 The repository is organized to maintain strict modularity between the frontend dashboard, backend API, and AI models. **Note on GitHub Tracking:** The \habitats/\ and \models/\ directories (and their subdirectories like \Vision Foundation/\, \Vision Language/\, \Segmentation/\) are tracked on GitHub via \.gitkeep\ files so the structure remains intact when you clone the project. However, the heavy 3D maps and AI model weights are completely ignored and will not be uploaded.
 
-- **\codes/\**: Contains the core Python scripts for the backend (\server.py\) and automated resource verification.
-- **\docs/\**: Stores architecture diagrams, charts, and GIFs used for documentation.
-- **\habitats/\**: The designated folder for 3D Habitat simulation maps (\.glb\, \.json\, \.tar\). 
-- **\models/\**: Stores the heavy local weights for the Segmentation, Detection, and Vision-Language models. 
-- **\setup/\**: Contains the terminal-based setup guides for Windows and Linux environments.
-- **\static/\ & \	emplates/\**: Holds the HTML, CSS, and JS files for the frontend web dashboard.
-- **\start.py\**: The main entry point to automatically check resources and launch the OptiSight server.
+```text
+├── codes/          # Core Python scripts for backend (server.py) and verification
+├── docs/           # Architecture diagrams, charts, and GIFs for documentation
+├── habitats/       # Designated folder for 3D Habitat simulation maps (.glb, .json, .tar)
+├── models/         # Heavy local weights for Segmentation, Detection, and VLM models
+├── setup/          # Terminal-based setup guides for Windows and Linux environments
+├── static/         # CSS, JS, and asset files for the frontend web dashboard
+├── templates/      # HTML templates for the frontend web dashboard
+└── start.py        # Main entry point to check resources and launch OptiSight server
+```
 
 ---
 
@@ -86,7 +95,10 @@ This project integrates three types of AI models. You must download the followin
 ---
 
 ## 3. Setup Instructions
-We provide straightforward terminal-based setup guides for both Operating Systems. No complex \.bat\ files are needed.
+We provide straightforward terminal-based setup guides for both Operating Systems. No complex `.bat` files are needed.
+
+> [!TIP]
+> **OS Recommendation:** While the project supports both operating systems, **Linux is highly recommended**. Running this project on Windows requires WSL2 and Conda, which will consume a massive amount of disk space due to the underlying Linux virtual machine and heavy ML dependencies.
 
 - **For Windows Users:** Please refer to the [Windows Setup Guide](setup/windows.md)
 - **For Linux Users:** Please refer to the [Linux Setup Guide](setup/linux.md)
@@ -96,9 +108,10 @@ We provide straightforward terminal-based setup guides for both Operating System
 ## 4. Running the Dashboard
 Once the setup steps are completed and models/maps are placed:
 
-\\ash
+```bash
 python start.py
-\This will automatically verify your resources, extract maps if necessary, and start the local server. Navigate to \http://localhost:8000\ in your web browser.
+```
+This will automatically verify your resources, extract maps if necessary, and start the local server. Navigate to `http://localhost:8000` in your web browser.
 
 ### Using the Interface Modes
 Upon launching the dashboard, you will have several modes available:
@@ -115,7 +128,15 @@ Upon launching the dashboard, you will have several modes available:
 
 Our system has been rigorously tested across various complex scenarios to evaluate the autonomous navigation, visual grounding, and language reasoning capabilities.
 
+> [!NOTE]
+> **Evaluation & Success Rates (Table I):** 
+> Please note that there is no automated evaluation pipeline or script in this repository to compute the final success rates. The `experiments/result_NN.txt` files log the exact starting point and final result for the *single* trial recorded in its corresponding demonstration video. We have 24 distinct experiments/scenarios in total. To determine the aggregated success rates reported in the paper (Table I), each of these 24 scenarios was tested **10 times manually**. Those 10 repetitions per experiment were conducted, evaluated, and tallied entirely by hand to calculate the final numbers.
+
 ![All Experiments](docs/Figures/All%20Experiments.png)
+
+**📖 Read the Paper:**  
+Detailed methodology, results, and architectural discussions are available in our official publication:  
+[**OptiSight CoT Autonomous Navigating System** (arXiv:2608.23354)](https://arxiv.org/abs/2608.23354)
 
 You can view our complete set of experiment and demonstration videos here:  
 [Google Drive - OptiSight Experiment Videos](https://drive.google.com/drive/folders/1BUqd38gp1u8Yjrdyx4i71gEhp_5i-Gde)

@@ -1,38 +1,72 @@
-# Windows Setup Guide
+# Windows Setup Guide (via WSL2)
 
-These instructions are for setting up the OptiSight Dashboard on Windows.
+Because **AI Habitat** is natively built for Linux and does not support native Windows, the only proper and headache-free way to run this project on Windows is by using **Windows Subsystem for Linux (WSL2)**. 
+
+WSL2 allows you to run a full Linux environment inside Windows while seamlessly sharing your NVIDIA GPU for the VLM and Vision Foundation models.
+
+> [!WARNING]
+> **Storage Space Alert:** Setting up this project on Windows requires installing a full Linux virtual machine via WSL2 and creating Conda environments with heavy machine learning libraries. This setup will consume a **massive amount of disk space** (easily 30GB - 50GB+). If you have limited storage on your Windows drive, we highly recommend using a native Linux system instead.
 
 > [!IMPORTANT]
-> **GPU Requirement:** The Vision Language Models (VLMs) and Segmentation models require an NVIDIA GPU with CUDA support for acceptable performance. Running on CPU is possible but will be extremely slow.
+> **Hardware Requirements:** Running AI Habitat along with large Vision Language Models (VLM) simultaneously will consume a significant amount of memory. We highly recommend at least **12GB+ GPU VRAM** and **16GB+ System RAM**. Make sure you have the official NVIDIA drivers installed on Windows (WSL2 will automatically use them).
 
-## Step 1: Open PowerShell
-Open PowerShell or Command Prompt in the project directory.
-
-## Step 2: Create a Virtual Environment
-It is recommended to use a Python virtual environment to avoid dependency conflicts.
-
+## Step 1: Install WSL2 (Ubuntu)
+Open **PowerShell as Administrator** in Windows and run:
 ```powershell
-python -m venv venv
+wsl --install
+```
+*Restart your computer if prompted. After restarting, a Linux terminal will open and ask you to create a UNIX username and password.*
+
+## Step 2: Install Miniconda in WSL2
+Open your **Ubuntu (WSL)** terminal and run the following commands to install Miniconda:
+```bash
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+bash Miniconda3-latest-Linux-x86_64.sh -b
+source ~/miniconda3/bin/activate
+conda init
+```
+*Close the Ubuntu terminal and open a new one to apply the conda changes.*
+
+## Step 3: Clone the Repository
+In your **Ubuntu (WSL)** terminal:
+```bash
+git clone <YOUR_REPOSITORY_URL>
+cd Project
 ```
 
-## Step 3: Activate the Virtual Environment
-Activate the environment so that packages are installed locally in the project.
-
-```powershell
-.\venv\Scripts\Activate.ps1
+## Step 4: Create and Activate the Conda Environment
+We will create an environment named `habitat` (as is standard for AI Habitat projects):
+```bash
+conda create -n habitat python=3.10 -y
+conda activate habitat
 ```
-*(Note: If you get an Execution Policy error, run `Set-ExecutionPolicy Unrestricted -Scope CurrentUser` and try again).*
 
-## Step 4: Install Dependencies
-Install all required Python packages from the `requirements.txt` file.
+## Step 5: Install PyTorch (with CUDA)
+Install PyTorch configured for your GPU to ensure the VLM and Segmentation models can be loaded into VRAM:
+```bash
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+```
 
-```powershell
+## Step 6: Install AI Habitat
+Install AI Habitat directly from conda to avoid any C++ compilation headaches:
+```bash
+conda install habitat-sim -c aihabitat -c conda-forge -y
+```
+
+## Step 7: Install Remaining Dependencies
+Install the rest of the project's dependencies:
+```bash
 pip install -r requirements.txt
 ```
 
-## Step 5: Start the Server
-Once everything is downloaded and installed (including maps and models mentioned in the main README), you can start the dashboard.
+## Step 8: Setup Models and Maps
+As described in the main `README.md`:
+1. Place your 3D Map archives (`.tar`) into the `habitats/` folder.
+2. Download and place the required Model weights into the `models/` folder.
 
-```powershell
+## Step 9: Start the Server
+Once everything is set up, you can start the dashboard. The system will load the VLM into memory and initialize Habitat.
+```bash
 python start.py
 ```
+*You can now open your normal Windows web browser and navigate to `http://localhost:8000`. WSL2 automatically forwards the ports to Windows!*
